@@ -143,16 +143,16 @@ void main() {
     test('single result', () async {
       final newItem = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
 
       final result = await db
@@ -173,29 +173,29 @@ void main() {
     test('multiple results', () async {
       final newItem1 = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test1',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
       final newItem2 = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test2',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
 
       final result = await db.$query(todo, fields: 'id, name').get();
@@ -213,29 +213,29 @@ void main() {
     test('query multiple results', () async {
       final newItem1 = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test1',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
       final newItem2 = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test2',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
 
       final result = await db
@@ -253,16 +253,16 @@ void main() {
     test('select fields', () async {
       final newItem1 = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test1',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
 
       final result = await db
@@ -279,29 +279,29 @@ void main() {
     test('correct order', () async {
       final newItem1 = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test1',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
       final newItem2 = await db.$create(
         todo,
-        RecordModel(
-          id: db.generateId(),
-          created: DateTime.now().toIso8601String(),
-          updated: DateTime.now().toIso8601String(),
-          data: {
+        RecordModel({
+          'id': db.generateId(),
+          'created': DateTime.now().toIso8601String(),
+          'updated': DateTime.now().toIso8601String(),
+          'data': {
             'name': 'test2',
           },
-          collectionId: todoCollection.id,
-          collectionName: todoCollection.name,
-        ).toJson(),
+          'collectionId': todoCollection.id,
+          'collectionName': todoCollection.name,
+        }).toJson(),
       );
 
       final result = await db
