@@ -29,7 +29,7 @@ void main() async {
   final client = $PocketBase.database(
     url,
     inMemory: true,
-    authStore: $AuthStore(await SharedPreferences.getInstance()),
+    authStore: $AuthStore((await SharedPreferences.getInstance()), 'pb_auth'),
     httpClientFactory: () => PocketBaseHttpClient.retry(retries: 1),
     connection: connect('pocketbase.db', inMemory: true),
   )..logging = kDebugMode;

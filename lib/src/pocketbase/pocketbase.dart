@@ -8,8 +8,8 @@ import 'package:pocketbase_drift/src/database/connection/connection.dart';
 class $PocketBase extends PocketBase {
   $PocketBase(
     super.baseUrl, {
-    super.lang,
     required DataBase database,
+    super.lang,
     super.authStore,
     super.httpClientFactory,
   }) : db = database;
@@ -33,9 +33,6 @@ class $PocketBase extends PocketBase {
       httpClientFactory: httpClientFactory,
     );
   }
-
-  // @override
-  // final AuthStore authStore;
 
   final DataBase db;
   bool logging = false;

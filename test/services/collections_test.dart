@@ -28,13 +28,13 @@ void main() {
     setUpAll(() async {
       client = $PocketBase.database(
         url,
-        authStore: $AuthStore(await SharedPreferences.getInstance()),
+        authStore: $AuthStore((await SharedPreferences.getInstance()), 'pb_auth'),
         inMemory: true,
         connection: DatabaseConnection(NativeDatabase.memory()),
         httpClientFactory: () => PocketBaseHttpClient.retry(retries: 1),
       );
 
-      await client.admins.authWithPassword(
+      await client.collection('_superusers').authWithPassword(
         username,
         password,
       );
