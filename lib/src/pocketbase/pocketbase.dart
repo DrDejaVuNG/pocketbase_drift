@@ -3,6 +3,7 @@
 import 'package:drift/drift.dart';
 import 'package:http/http.dart';
 import 'package:pocketbase_drift/pocketbase_drift.dart';
+import 'package:pocketbase_drift/src/database/connection/connection.dart';
 
 class $PocketBase extends PocketBase {
   $PocketBase(
@@ -10,22 +11,23 @@ class $PocketBase extends PocketBase {
     super.lang,
     required this.authStore,
     required DataBase database,
-    Client Function()? httpClientFactory,
-  })  : db = database,
-        super(httpClientFactory: httpClientFactory);
+    super.httpClientFactory,
+  }) : db = database;
 
   factory $PocketBase.database(
     String baseUrl, {
-    required DatabaseConnection connection,
     required AuthStore authStore,
     bool inMemory = false,
     bool autoLoad = true,
     String lang = "en-US",
+    DatabaseConnection? connection,
     Client Function()? httpClientFactory,
   }) {
     return $PocketBase(
       baseUrl,
-      database: DataBase(connection),
+      database: DataBase(
+        connection ?? connect('pocketbase.db', inMemory: inMemory),
+      ),
       lang: lang,
       authStore: authStore,
       httpClientFactory: httpClientFactory,
