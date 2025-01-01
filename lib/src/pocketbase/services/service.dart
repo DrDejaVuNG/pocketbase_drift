@@ -171,6 +171,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
   Future<ResultList<M>> getList({
     int page = 1,
     int perPage = 30,
+    bool skipTotal = false,
     String? expand,
     String? filter,
     String? sort,
@@ -186,6 +187,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
           .getList(
             page: page,
             perPage: perPage,
+            skipTotal: skipTotal,
             expand: expand,
             filter: filter,
             fields: fields,

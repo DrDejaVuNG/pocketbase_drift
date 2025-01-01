@@ -50,14 +50,14 @@ class StringListMapper extends TypeConverter<List<String>, String> {
   String toSql(List<String> value) => jsonEncode(value);
 }
 
-class SchemaFieldListMapper extends TypeConverter<List<SchemaField>, String> {
+class SchemaFieldListMapper extends TypeConverter<List<CollectionField>, String> {
   const SchemaFieldListMapper();
 
   @override
-  List<SchemaField> fromSql(String fromDb) => (jsonDecode(fromDb) as List).map((e) => SchemaField.fromJson(e)).toList();
+  List<CollectionField> fromSql(String fromDb) => (jsonDecode(fromDb) as List).map((e) => CollectionField.fromJson(e)).toList();
 
   @override
-  String toSql(List<SchemaField> value) => jsonEncode(value.map((e) => e.toJson()).toList());
+  String toSql(List<CollectionField> value) => jsonEncode(value.map((e) => e.toJson()).toList());
 }
 
 String newId() {

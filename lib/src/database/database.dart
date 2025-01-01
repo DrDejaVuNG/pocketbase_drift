@@ -12,7 +12,7 @@ part 'database.g.dart';
   include: {'sql/search.drift'},
 )
 class DataBase extends _$DataBase {
-  DataBase(DatabaseConnection connection) : super.connect(connection);
+  DataBase(super.connection) : super.connect();
 
   @override
   int get schemaVersion => 2;
@@ -224,13 +224,13 @@ class DataBase extends _$DataBase {
           // Match field to relation
           final collections = await $collections().get();
           final c = collections.firstWhere((e) => e.name == service);
-          final schemaField = c.schema.firstWhere(
+          final schemaField = c.fields.firstWhere(
             (e) => e.name == targetField,
           );
           final targetCollection = collections.firstWhere(
-            (e) => e.id == schemaField.options['collectionId'],
+            (e) => e.id == schemaField.data['collectionId'],
           );
-          final isSingle = schemaField.options['maxSelect'] == 1;
+          final isSingle = schemaField.data['maxSelect'] == 1;
           final id = record[targetField] as String?;
           final results = <Map<String, dynamic>>[];
           if (id != null) {
@@ -247,8 +247,8 @@ class DataBase extends _$DataBase {
             } else {
               final result = await query.get();
               var items = result.toList();
-              if (schemaField.options['maxSelect'] != null) {
-                final maxCount = schemaField.options['maxSelect'] as int;
+              if (schemaField.data['maxSelect'] != null) {
+                final maxCount = schemaField.data['maxSelect'] as int;
                 items = items.take(maxCount).toList();
               }
               results.addAll(items);
@@ -304,7 +304,7 @@ class DataBase extends _$DataBase {
   ///
   /// Returns true if data is valid
   bool validateData(CollectionModel collection, Map<String, dynamic> data) {
-    for (final field in collection.schema) {
+    for (final field in collection.fields) {
       final value = data[field.name];
       if (field.required && value == null) {
         throw Exception('Field ${field.name} is required');
@@ -341,10 +341,10 @@ class DataBase extends _$DataBase {
         }
       }
       if (field.type == 'select' || field.type == 'file' || field.type == 'relation') {
-        if (value != null && field.options['maxSelect'] != null) {
-          if (field.options['maxSelect'] == 1 && value is! String) {
+        if (value != null && field.data['maxSelect'] != null) {
+          if (field.data['maxSelect'] == 1 && value is! String) {
             throw Exception('Field ${field.name} must be a valid string');
-          } else if (field.options['maxSelect'] != 1 && value is! List) {
+          } else if (field.data['maxSelect'] != 1 && value is! List) {
             throw Exception('Field ${field.name} must be a valid list');
           }
         }

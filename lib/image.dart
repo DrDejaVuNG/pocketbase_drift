@@ -29,7 +29,7 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   final bool token;
 
   @override
-  ImageStreamCompleter load(PocketBaseImageProvider key, decode) {
+  ImageStreamCompleter loadImage(PocketBaseImageProvider key, ImageDecoderCallback decode) {
     return MultiFrameImageStreamCompleter(
       codec: _loadAsync(key, decode),
       scale: 1,
