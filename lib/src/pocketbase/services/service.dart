@@ -79,8 +79,11 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         timeout: timeout,
       ).then((list) {
         result.addAll(list.items);
-        print('$service page result: ${list.page}/${list.totalPages}=>${list.items.length}$batch');
-        if (list.items.length < batch || list.items.isEmpty || list.page == list.totalPages) {
+        print(
+            '$service page result: ${list.page}/${list.totalPages}=>${list.items.length}$batch');
+        if (list.items.length < batch ||
+            list.items.isEmpty ||
+            list.page == list.totalPages) {
           return result;
         }
         return request(page + 1);
@@ -491,8 +494,10 @@ enum FetchPolicy {
 }
 
 extension FetchPolicyUtils on FetchPolicy {
-  bool get isNetwork => this == FetchPolicy.networkOnly || this == FetchPolicy.cacheAndNetwork;
-  bool get isCache => this == FetchPolicy.cacheOnly || this == FetchPolicy.cacheAndNetwork;
+  bool get isNetwork =>
+      this == FetchPolicy.networkOnly || this == FetchPolicy.cacheAndNetwork;
+  bool get isCache =>
+      this == FetchPolicy.cacheOnly || this == FetchPolicy.cacheAndNetwork;
 
   Future<T> fetch<T>({
     required String label,

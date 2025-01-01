@@ -29,7 +29,8 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   final bool token;
 
   @override
-  ImageStreamCompleter loadImage(PocketBaseImageProvider key, ImageDecoderCallback decode) {
+  ImageStreamCompleter loadImage(
+      PocketBaseImageProvider key, ImageDecoderCallback decode) {
     return MultiFrameImageStreamCompleter(
       codec: _loadAsync(key, decode),
       scale: 1,
@@ -41,7 +42,8 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
     final bytes = await databaseOrDownload();
     if (bytes == null || bytes.isEmpty) {
       PaintingBinding.instance.imageCache.evict(key);
-      throw StateError('${key.filename} is empty and cannot be loaded as an image.');
+      throw StateError(
+          '${key.filename} is empty and cannot be loaded as an image.');
     }
 
     return decode(bytes);
@@ -93,7 +95,8 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   }
 
   Future<BlobFile?> database() async {
-    final client = await this.client.db.getFile(record.id, filename).getSingleOrNull();
+    final client =
+        await this.client.db.getFile(record.id, filename).getSingleOrNull();
     if (client != null) {
       return client;
     } else {
@@ -105,8 +108,11 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
     BlobFile? file = await database();
     final now = DateTime.now();
     bool needsUpdate = file?.data == null;
-    if (file != null && file.expiration != null && file.expiration!.isBefore(now)) {
-      debugPrint('File ${record.id} ${record.collectionName} $filename expired, downloading again');
+    if (file != null &&
+        file.expiration != null &&
+        file.expiration!.isBefore(now)) {
+      debugPrint(
+          'File ${record.id} ${record.collectionName} $filename expired, downloading again');
       needsUpdate = true;
     }
     if (needsUpdate) {
@@ -121,7 +127,8 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
           );
         }
       } catch (e) {
-        debugPrint('Error downloading file ${record.id} ${record.collectionName} $filename: $e');
+        debugPrint(
+            'Error downloading file ${record.id} ${record.collectionName} $filename: $e');
       }
     }
     return file?.data;

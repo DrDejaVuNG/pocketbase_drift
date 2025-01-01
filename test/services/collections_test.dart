@@ -20,7 +20,9 @@ void main() {
 
   late final $PocketBase client;
   late final db = client.db;
-  final collections = [...offlineCollections].map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e)))).toList();
+  final collections = [...offlineCollections]
+      .map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e))))
+      .toList();
 
   group('collections service', () {
     setUpAll(() async {
@@ -88,7 +90,8 @@ void main() {
       ]) {
         test(fetchPolicy.name, () async {
           const targetName = 'todo';
-          final targetId = collections.firstWhere((e) => e.name == targetName).id;
+          final targetId =
+              collections.firstWhere((e) => e.name == targetName).id;
 
           final idList = await client.collections.getList(
             filter: 'id = "$targetId"',

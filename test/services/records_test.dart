@@ -20,7 +20,9 @@ void main() {
 
   late final $PocketBase client;
   late final db = client.db;
-  final collections = [...offlineCollections].map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e)))).toList();
+  final collections = [...offlineCollections]
+      .map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e))))
+      .toList();
 
   late final $RecordService service;
 

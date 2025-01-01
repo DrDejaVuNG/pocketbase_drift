@@ -108,8 +108,11 @@ class DataBase extends _$DataBase {
       // ?<= Any/At least one of Less than or equal
       // ?~ Any/At least one of Like/Contains (if not specified auto wraps the right string OPERAND in a "%" for wildcard match)
       // ?!~ Any/At least one of NOT Like/Contains (if not specified auto wraps the right string OPERAND in a "%" for wildcard match)
-      final parts = filter.replaceAll('(', '').replaceAll(')', '').multiSplit([' AND ', ' OR ']);
-      
+      final parts = filter
+          .replaceAll('(', '')
+          .replaceAll(')', '')
+          .multiSplit([' AND ', ' OR ']);
+
       final processedFields = <String>{}; // To keep track of processed fields.
       for (final part in parts) {
         final words = part.split(' ');
@@ -124,7 +127,7 @@ class DataBase extends _$DataBase {
           processedFields.add(field); // Mark the field as processed.
         }
       }
-      
+
       sb.write(' AND ($filter)');
     }
     if (sort != null && sort.isNotEmpty) {
@@ -204,7 +207,8 @@ class DataBase extends _$DataBase {
             throw Exception('Max 6 levels expand supported');
           }
 
-          final nestedExpand = levels.length == 1 ? null : levels.skip(1).join('.');
+          final nestedExpand =
+              levels.length == 1 ? null : levels.skip(1).join('.');
           final targetField = levels.first;
 
           // check for indirect expand=comments(post).user
@@ -340,7 +344,9 @@ class DataBase extends _$DataBase {
           throw Exception('Field ${field.name} must be a valid email');
         }
       }
-      if (field.type == 'select' || field.type == 'file' || field.type == 'relation') {
+      if (field.type == 'select' ||
+          field.type == 'file' ||
+          field.type == 'relation') {
         if (value != null && field.data['maxSelect'] != null) {
           if (field.data['maxSelect'] == 1 && value is! String) {
             throw Exception('Field ${field.name} must be a valid string');
@@ -494,8 +500,10 @@ class DataBase extends _$DataBase {
           id: Value(item['id']),
           data: item,
           service: service,
-          created: Value((DateTime.tryParse(item['created']) ?? DateTime.now()).toIso8601String()),
-          updated: Value((DateTime.tryParse(item['updated']) ?? DateTime.now()).toIso8601String()),
+          created: Value((DateTime.tryParse(item['created']) ?? DateTime.now())
+              .toIso8601String()),
+          updated: Value((DateTime.tryParse(item['updated']) ?? DateTime.now())
+              .toIso8601String()),
         );
         b.insert(
           services,
@@ -510,12 +518,15 @@ class DataBase extends _$DataBase {
     print('$service: ${results.length}');
   }
 
-  Future<void> setSchema(List<Map<String, dynamic>> items) => setLocal('schema', items);
+  Future<void> setSchema(List<Map<String, dynamic>> items) =>
+      setLocal('schema', items);
 
   // -- Files --
 
   Selectable<BlobFile> getFile(String recordId, String filename) {
-    return select(blobFiles)..where((tbl) => tbl.recordId.equals(recordId) & tbl.filename.equals(filename));
+    return select(blobFiles)
+      ..where((tbl) =>
+          tbl.recordId.equals(recordId) & tbl.filename.equals(filename));
   }
 
   Future<BlobFile> setFile(
@@ -545,11 +556,15 @@ class DataBase extends _$DataBase {
   }
 
   Future<void> deleteFile(String recordId, String filename) async {
-    final q = delete(blobFiles)..where((tbl) => tbl.recordId.equals(recordId) & tbl.filename.equals(filename));
+    final q = delete(blobFiles)
+      ..where((tbl) =>
+          tbl.recordId.equals(recordId) & tbl.filename.equals(filename));
     await q.go();
   }
 }
 
 extension StringUtils on String {
-  List<String> multiSplit(Iterable<String> delimiters) => delimiters.isEmpty ? [this] : split(RegExp(delimiters.map(RegExp.escape).join('|')));
+  List<String> multiSplit(Iterable<String> delimiters) => delimiters.isEmpty
+      ? [this]
+      : split(RegExp(delimiters.map(RegExp.escape).join('|')));
 }

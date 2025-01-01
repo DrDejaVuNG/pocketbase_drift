@@ -23,7 +23,8 @@ class $AuthStore extends AuthStore {
       return;
     }
 
-    final encoded = jsonEncode(<String, dynamic>{"token": newToken, "model": newModel});
+    final encoded =
+        jsonEncode(<String, dynamic>{"token": newToken, "model": newModel});
     prefs.setString(key, encoded);
   }
 
@@ -41,7 +42,8 @@ class $AuthStore extends AuthStore {
     if (raw != null && raw.isNotEmpty) {
       final decoded = jsonDecode(raw);
       final token = (decoded as Map<String, dynamic>)["token"] as String? ?? "";
-      final model = RecordModel.fromJson(decoded["model"] as Map<String, dynamic>? ?? {});
+      final model =
+          RecordModel.fromJson(decoded["model"] as Map<String, dynamic>? ?? {});
 
       save(token, model);
     }
