@@ -19,7 +19,9 @@ import 'widgets/full_text_search.dart';
 import 'widgets/pending_changes.dart';
 
 const url = 'http://127.0.0.1:3000';
-final collections = [...offlineCollections].map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e)))).toList();
+final collections = [...offlineCollections]
+    .map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e))))
+    .toList();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -147,7 +149,7 @@ class _ExampleState extends State<Example> {
         ),
       );
     }
-    final fields = col!.schema.toList();
+    final fields = col!.fields.toList();
     return Scaffold(
       appBar: AppBar(
         title: title,
@@ -174,16 +176,16 @@ class _ExampleState extends State<Example> {
               tooltip: 'Add offline only records',
               onPressed: () async {
                 final items = LOCAL_TODOS
-                    .map((e) => RecordModel(
-                          id: widget.client.db.generateId(),
-                          created: DateTime.now().toIso8601String(),
-                          updated: DateTime.now().toIso8601String(),
-                          data: {
+                    .map((e) => RecordModel({
+                          'id': widget.client.db.generateId(),
+                          'created': DateTime.now().toIso8601String(),
+                          'updated': DateTime.now().toIso8601String(),
+                          'data': {
                             'name': e['title'],
                           },
-                          collectionId: col!.id,
-                          collectionName: col!.name,
-                        ))
+                          'collectionId': col!.id,
+                          'collectionName': col!.name,
+                        }))
                     .toList();
                 await collection!.setLocal(items);
               },
@@ -259,7 +261,8 @@ class _ExampleState extends State<Example> {
           for (final field in fields) {
             final value = record.toJson()[field.name];
             if (value != null) {
-              final match = '$value'.toLowerCase().contains(query.toLowerCase());
+              final match =
+                  '$value'.toLowerCase().contains(query.toLowerCase());
               matches.add(match ? 1 : 0);
             }
           }
