@@ -9,8 +9,8 @@ class $PocketBase extends PocketBase {
   $PocketBase(
     super.baseUrl, {
     super.lang,
-    required this.authStore,
     required DataBase database,
+    super.authStore,
     super.httpClientFactory,
   }) : db = database;
 
@@ -34,8 +34,8 @@ class $PocketBase extends PocketBase {
     );
   }
 
-  @override
-  final AuthStore authStore;
+  // @override
+  // final AuthStore authStore;
 
   final DataBase db;
   bool logging = false;
