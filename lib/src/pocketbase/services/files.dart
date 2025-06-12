@@ -1,12 +1,1 @@
-import 'package:pocketbase/pocketbase.dart';
-
-import '../pocketbase.dart';
-
-class $FileService extends FileService {
-  $FileService(this.client) : super(client);
-
-  @override
-  final $PocketBase client;
-
-  // TODO: Local url
-}
+export 'file_service/web.dart' if (dart.library.io) 'file_service/native.dart';

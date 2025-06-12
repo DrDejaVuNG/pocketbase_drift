@@ -1,4 +1,3 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
 import 'dart:convert';
 
@@ -8,8 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:simple_html_css/simple_html_css.dart';
 
 import 'package:pocketbase_drift/pocketbase_drift.dart';
-import 'package:pocketbase_drift/auth.dart';
-import 'package:pocketbase_drift/database.dart';
 
 import 'data/collections.json.dart';
 import 'data/todos.json.dart';
@@ -18,8 +15,10 @@ import 'widgets/data_view.dart';
 import 'widgets/full_text_search.dart';
 import 'widgets/pending_changes.dart';
 
-const url = 'http://127.0.0.1:3000';
-final collections = [...offlineCollections].map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e)))).toList();
+const url = 'http://127.0.0.1:8090';
+final collections = [...offlineCollections]
+    .map((e) => CollectionModel.fromJson(jsonDecode(jsonEncode(e))))
+    .toList();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,8 +26,7 @@ void main() async {
   final client = $PocketBase.database(
     url,
     inMemory: true,
-    authStore: $AuthStore(await SharedPreferences.getInstance()),
-    httpClientFactory: () => PocketBaseHttpClient.retry(retries: 1),
+    authStore: $AuthStore((await SharedPreferences.getInstance()), 'pb_auth'),
     connection: connect('pocketbase.db', inMemory: true),
   )..logging = kDebugMode;
 
@@ -73,15 +71,15 @@ class _ExampleState extends State<Example> {
   }
 
   Future<void> select(String id) async {
-    print('select: $id');
+    debugPrint('select: $id');
     col = await widget.client.collections.getOne(
       id,
-      fetchPolicy: FetchPolicy.cacheOnly,
+      requestPolicy: RequestPolicy.cacheOnly,
     );
-    print('col: $col');
+    debugPrint('col: $col');
     collection = widget.client.collection(col!.name);
     subscription?.cancel();
-    print('watching...');
+    debugPrint('watching...');
     subscription = collection!.watchRecords().listen(
       (event) {
         debugPrint('items: ${event.length}');
@@ -147,7 +145,7 @@ class _ExampleState extends State<Example> {
         ),
       );
     }
-    final fields = col!.schema.toList();
+    final fields = col!.fields.toList();
     return Scaffold(
       appBar: AppBar(
         title: title,
@@ -174,16 +172,15 @@ class _ExampleState extends State<Example> {
               tooltip: 'Add offline only records',
               onPressed: () async {
                 final items = LOCAL_TODOS
-                    .map((e) => RecordModel(
-                          id: widget.client.db.generateId(),
-                          created: DateTime.now().toIso8601String(),
-                          updated: DateTime.now().toIso8601String(),
-                          data: {
+                    .map((e) => RecordModel({
+                          'created': DateTime.now().toIso8601String(),
+                          'updated': DateTime.now().toIso8601String(),
+                          'data': {
                             'name': e['title'],
                           },
-                          collectionId: col!.id,
-                          collectionName: col!.name,
-                        ))
+                          'collectionId': col!.id,
+                          'collectionName': col!.name,
+                        }))
                     .toList();
                 await collection!.setLocal(items);
               },
@@ -203,26 +200,6 @@ class _ExampleState extends State<Example> {
                       ),
                     );
                   },
-          ),
-          const SizedBox(width: 8),
-          DropdownButton(
-            value: PocketBaseHttpClient.offline,
-            items: const [
-              DropdownMenuItem(
-                value: true,
-                child: Text('Offline'),
-              ),
-              DropdownMenuItem(
-                value: false,
-                child: Text('Online'),
-              ),
-            ],
-            onChanged: (value) async {
-              PocketBaseHttpClient.offline = value!;
-              if (mounted) {
-                setState(() {});
-              }
-            },
           ),
           const SizedBox(width: 8),
           DropdownButton(
@@ -259,7 +236,8 @@ class _ExampleState extends State<Example> {
           for (final field in fields) {
             final value = record.toJson()[field.name];
             if (value != null) {
-              final match = '$value'.toLowerCase().contains(query.toLowerCase());
+              final match =
+                  '$value'.toLowerCase().contains(query.toLowerCase());
               matches.add(match ? 1 : 0);
             }
           }
@@ -349,8 +327,8 @@ class _ExampleState extends State<Example> {
                 ),
               );
             }).toList(),
-            DataCell(Text(record.created)),
-            DataCell(Text(record.updated)),
+            DataCell(Text(record.get<String>('created'))),
+            DataCell(Text(record.get<String>('updated'))),
           ];
         },
       ),
@@ -369,7 +347,7 @@ class _ExampleState extends State<Example> {
           if (result != null) {
             await collection!.create(
               body: result,
-              // fetchPolicy: FetchPolicy.cacheOnly,
+              // requestPolicy: RequestPolicy.cacheOnly,
             );
             if (mounted) setState(() {});
           }

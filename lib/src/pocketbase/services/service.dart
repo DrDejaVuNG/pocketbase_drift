@@ -1,6 +1,6 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import "package:http/http.dart" as http;
 
 import '../../../pocketbase_drift.dart';
@@ -18,10 +18,11 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? fields,
     Map<String, dynamic> query = const {},
     Map<String, String> headers = const {},
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
   }) async {
-    return fetchPolicy.fetch<M>(
+    return requestPolicy.fetch<M>(
       label: service,
+      client: client,
       remote: () => super.getOne(
         id,
         fields: fields,
@@ -60,7 +61,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? fields,
     Map<String, dynamic> query = const {},
     Map<String, String> headers = const {},
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Duration timeout = const Duration(seconds: 30),
   }) {
     final result = <M>[];
@@ -75,12 +76,15 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         expand: expand,
         query: query,
         headers: headers,
-        fetchPolicy: fetchPolicy,
+        requestPolicy: requestPolicy,
         timeout: timeout,
       ).then((list) {
         result.addAll(list.items);
-        print('$service page result: ${list.page}/${list.totalPages}=>${list.items.length}$batch');
-        if (list.items.length < batch || list.items.isEmpty || list.page == list.totalPages) {
+        client.logger.finer(
+            'Fetched page for "$service": ${list.page}/${list.totalPages} (${list.items.length} items)');
+        if (list.items.length < batch ||
+            list.items.isEmpty ||
+            list.page == list.totalPages) {
           return result;
         }
         return request(page + 1);
@@ -97,10 +101,11 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? fields,
     Map<String, dynamic> query = const {},
     Map<String, String> headers = const {},
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
   }) {
-    return fetchPolicy.fetch<M>(
+    return requestPolicy.fetch<M>(
       label: service,
+      client: client,
       remote: () {
         return getList(
           perPage: 1,
@@ -109,7 +114,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
           fields: fields,
           query: query,
           headers: headers,
-          fetchPolicy: fetchPolicy,
+          requestPolicy: requestPolicy,
         ).then((result) {
           if (result.items.isEmpty) {
             throw ClientException(
@@ -150,7 +155,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? fields,
     Map<String, dynamic> query = const {},
     Map<String, String> headers = const {},
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
   }) async {
     try {
       return getFirstListItem(
@@ -159,10 +164,12 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         fields: fields,
         query: query,
         headers: headers,
-        fetchPolicy: fetchPolicy,
+        requestPolicy: requestPolicy,
       );
     } catch (e) {
-      print('error get $filter: $e');
+      client.logger.fine(
+          'getFirstListItemOrNull for "$service" with filter "$filter" returned null',
+          e);
       return null;
     }
   }
@@ -171,21 +178,24 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
   Future<ResultList<M>> getList({
     int page = 1,
     int perPage = 30,
+    bool skipTotal = false,
     String? expand,
     String? filter,
     String? sort,
     String? fields,
     Map<String, dynamic> query = const {},
     Map<String, String> headers = const {},
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    return fetchPolicy.fetch<ResultList<M>>(
+    return requestPolicy.fetch<ResultList<M>>(
       label: service,
+      client: client,
       remote: () => super
           .getList(
             page: page,
             perPage: perPage,
+            skipTotal: skipTotal,
             expand: expand,
             filter: filter,
             fields: fields,
@@ -220,12 +230,9 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         );
       },
       setLocal: (value) async {
-        // TODO: (filter == null || filter.isEmpty) && (fields == null || fields.isEmpty) ? merge
-        await client.db.setLocal(
-          service,
-          value.items.map((e) => e.toJson()).toList(),
-          removeAll: false,
-        );
+        // Use the more efficient merge operation for list fetches.
+        await client.db
+            .mergeLocal(service, value.items.map((e) => e.toJson()).toList());
       },
     );
   }
@@ -236,12 +243,12 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? fields,
     Map<String, dynamic> query = const {},
     Map<String, String> headers = const {},
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
   }) async {
     try {
       final result = await getOne(
         id,
-        fetchPolicy: fetchPolicy,
+        requestPolicy: requestPolicy,
         expand: expand,
         fields: fields,
         query: query,
@@ -249,9 +256,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
       );
       return result;
     } catch (e) {
-      if (client.logging) {
-        print('cannot find $id in $service $e');
-      }
+      client.logger.fine('getOneOrNull for "$service/$id" returned null.', e);
     }
     return null;
   }
@@ -267,9 +272,20 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     );
   }
 
+  Future<void> _cacheFileBlob(
+      String recordId, String filename, Uint8List bytes) async {
+    try {
+      await client.db.setFile(recordId, filename, bytes);
+      client.logger.fine('Cached file blob "$filename" for record "$recordId"');
+    } catch (e) {
+      client.logger.warning(
+          'Error caching file blob "$filename" for record "$recordId"', e);
+    }
+  }
+
   @override
   Future<M> create({
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Map<String, dynamic> body = const {},
     Map<String, dynamic> query = const {},
     List<http.MultipartFile> files = const [],
@@ -277,73 +293,174 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? expand,
     String? fields,
   }) async {
-    if (fetchPolicy != FetchPolicy.networkOnly && files.isNotEmpty) {
-      throw Exception('Cannot upload files in offline mode');
+    // Buffer the raw file data immediately. A MultipartFile can only be read once.
+    final List<(String field, String? filename, Uint8List bytes)>
+        bufferedFilesData = [];
+    if (files.isNotEmpty) {
+      for (final file in files) {
+        final bytes = await file.finalize().toBytes();
+        bufferedFilesData.add((file.field, file.filename, bytes));
+      }
     }
 
     M? result;
-    bool saved = false;
+    bool savedToNetwork = false;
+    Map<String, dynamic> recordDataForCache =
+        Map.from(body); // Start with body for cache
 
-    // TODO: Save files for offline
+    // For cache-only, we need to manually add filenames to the record data
+    if (requestPolicy == RequestPolicy.cacheOnly) {
+      for (final file in files) {
+        final fieldName = file.field;
+        final filename = file.filename;
+        if (filename == null) continue;
 
-    if (fetchPolicy.isNetwork) {
+        // We MUST look up the schema to know if the field is multi-select.
+        final collection =
+            await client.db.$collections(service: service).getSingle();
+        final schemaField =
+            collection.fields.firstWhere((f) => f.name == fieldName);
+        final isMultiSelect = schemaField.data['maxSelect'] != 1;
+
+        final existing = recordDataForCache[fieldName];
+        if (existing == null) {
+          recordDataForCache[fieldName] = isMultiSelect ? [filename] : filename;
+        } else if (existing is List) {
+          existing.add(filename);
+        } else {
+          // It was a string, but now we have another file. This case shouldn't
+          // happen if the schema is respected, but as a fallback, convert to list.
+          recordDataForCache[fieldName] = [existing, filename];
+        }
+      }
+    }
+
+    if (requestPolicy.isNetwork && client.connectivity.isConnected) {
       try {
-        try {
-          result = await super.create(
-            body: body,
-            query: query,
-            headers: headers,
-            expand: expand,
-            files: files,
-            fields: fields,
-          );
-        } on ClientException catch (e) {
-          if (e.statusCode == 400 && body['id'] != null) {
-            final id = body.remove('id');
+        result = await super.create(
+          body: body,
+          query: query,
+          headers: headers,
+          expand: expand,
+          fields: fields,
+          // Create fresh MultipartFile instances for the network call
+          files: bufferedFilesData.map((d) {
+            return http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2);
+          }).toList(),
+        );
+        savedToNetwork = true;
+        recordDataForCache =
+            result.toJson(); // Use network result for cache if successful
+      } on ClientException catch (e) {
+        if (e.statusCode == 400 && body['id'] != null) {
+          // If create failed with 400 (e.g. record exists), try to update
+          final id = body['id'] as String;
+          final updateBody = Map<String, dynamic>.from(body)..remove('id');
+          try {
             result = await super.update(
               id,
-              body: body,
+              body: updateBody,
               query: query,
               files: files,
               headers: headers,
               expand: expand,
               fields: fields,
             );
-          } else {
-            rethrow;
+            savedToNetwork = true;
+            recordDataForCache = result.toJson();
+          } catch (updateE) {
+            final msg =
+                'Failed to create (then update) record $body in $service: $e, then $updateE';
+            if (requestPolicy == RequestPolicy.networkOnly) {
+              throw Exception(msg);
+            }
+            debugPrint(msg);
           }
+        } else {
+          final msg = 'Failed to create record $body in $service: $e';
+          if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
+          debugPrint(msg);
         }
-        saved = true;
       } catch (e) {
         final msg = 'Failed to create record $body in $service: $e';
-        if (fetchPolicy == FetchPolicy.networkOnly) {
-          throw Exception(msg);
-        } else {
-          print(msg);
-        }
+        if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
+        debugPrint(msg);
       }
     }
 
-    if (fetchPolicy.isCache) {
-      final data = await client.db.$create(
+    if (requestPolicy.isCache) {
+      final shouldNoSync = requestPolicy == RequestPolicy.cacheOnly;
+      final localRecordData = await client.db.$create(
         service,
         {
-          ...result?.toJson() ?? body,
+          ...recordDataForCache,
           'deleted': false,
-          'synced': saved,
-          'isNew': !saved ? true : null,
+          'synced': savedToNetwork,
+          'isNew': !savedToNetwork ? true : null,
+          'noSync': shouldNoSync,
         },
       );
-      result = itemFactoryFunc(data);
+
+      final recordIdForFiles = localRecordData['id'] as String?;
+      if (recordIdForFiles != null && bufferedFilesData.isNotEmpty) {
+        for (final fileData in bufferedFilesData) {
+          // Get the filename(s) from the record data we just prepared.
+          // It will be the server-generated one for network, or original for cache-only.
+          final dynamic filenamesInRecord = recordDataForCache[fileData.$1];
+          final bytes = fileData.$3; // Use bytes directly from buffer
+
+          if (filenamesInRecord is String) {
+            // Handle single file field
+            await _cacheFileBlob(recordIdForFiles, filenamesInRecord, bytes);
+          } else if (filenamesInRecord is List &&
+              filenamesInRecord.isNotEmpty) {
+            // Handle multi-file field by finding the matching original filename
+            final originalFilename = fileData.$2;
+            if (originalFilename == null) continue;
+
+            final serverFilename = filenamesInRecord.firstWhere((f) {
+              if (f is! String) return false;
+              // Exact match (cacheOnly case)
+              if (f == originalFilename) return true;
+
+              // Check for server-renamed pattern
+              final dotIndex = originalFilename.lastIndexOf('.');
+              if (dotIndex == -1) return false; // No extension
+              final nameWithoutExt = originalFilename.substring(0, dotIndex);
+              return f.startsWith('${nameWithoutExt}_');
+            }, orElse: () => ''); // Return '' if not found
+
+            if (serverFilename.isNotEmpty) {
+              await _cacheFileBlob(recordIdForFiles, serverFilename, bytes);
+            }
+          }
+        }
+      }
+      result = itemFactoryFunc(localRecordData);
     }
 
-    return result!;
+    if (result == null && requestPolicy == RequestPolicy.networkOnly) {
+      throw Exception(
+          'Failed to create record $body in $service and networkOnly policy was used.');
+    }
+    if (result == null && requestPolicy == RequestPolicy.cacheOnly) {
+      // If cacheOnly, we should have a result from client.db.$create
+      // This path should ideally not be hit if db.$create is successful
+      throw Exception(
+          'Failed to create record $body in $service for cacheOnly policy.');
+    }
+    // If result is still null here for cacheAndNetwork, it means both network and cache ops might have had issues
+    // or the db.$create didn't return a usable item, which is unlikely if it doesn't throw.
+    // However, if itemFactoryFunc needs a non-null map, this could be an issue.
+    // For now, we assume db.$create always gives something itemFactoryFunc can use or throws.
+
+    return result!; // Assuming result will be non-null if not networkOnly
   }
 
   @override
   Future<M> update(
     String id, {
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Map<String, dynamic> body = const {},
     Map<String, dynamic> query = const {},
     List<http.MultipartFile> files = const [],
@@ -351,72 +468,165 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? expand,
     String? fields,
   }) async {
-    if (fetchPolicy != FetchPolicy.networkOnly && files.isNotEmpty) {
-      throw Exception('Cannot upload files in offline mode');
+    // Buffer the raw file data immediately. A MultipartFile can only be read once.
+    final List<(String field, String? filename, Uint8List bytes)>
+        bufferedFilesData = [];
+    if (files.isNotEmpty) {
+      for (final file in files) {
+        final bytes = await file.finalize().toBytes();
+        bufferedFilesData.add((file.field, file.filename, bytes));
+      }
     }
-    // return create(
-    //   body: {...body, 'id': id},
-    //   fetchPolicy: fetchPolicy,
-    //   query: query,
-    //   files: files,
-    //   headers: headers,
-    //   expand: expand,
-    //   fields: fields,
-    // );
+
     M? result;
-    bool saved = false;
+    bool savedToNetwork = false;
+    Map<String, dynamic> recordDataForCache = Map.from(body);
 
-    // TODO: Save files for offline
+    // For cache-only, we need to manually add filenames to the record data
+    if (requestPolicy == RequestPolicy.cacheOnly) {
+      for (final file in files) {
+        // Find the corresponding buffered data to get the filename
+        final fieldName = file.field;
+        final filename = file.filename;
+        if (filename == null) continue;
 
-    if (fetchPolicy.isNetwork) {
-      try {
-        try {
-          result = await super.update(
-            id,
-            body: body,
-            query: query,
-            headers: headers,
-            expand: expand,
-            files: files,
-            fields: fields,
-          );
-        } on ClientException catch (e) {
-          if (e.statusCode == 404 || e.statusCode == 400) {
-            result = await super.create(
-              body: {...body, 'id': id},
-              query: query,
-              files: files,
-              headers: headers,
-              expand: expand,
-              fields: fields,
-            );
-          } else {
-            rethrow;
-          }
-        }
-        saved = true;
-      } catch (e) {
-        final msg = 'Failed to update record $body in $service: $e';
-        if (fetchPolicy == FetchPolicy.networkOnly) {
-          throw Exception(msg);
+        // We MUST look up the schema to know if the field is multi-select.
+        final collection =
+            await client.db.$collections(service: service).getSingle();
+        final schemaField =
+            collection.fields.firstWhere((f) => f.name == fieldName);
+        final isMultiSelect = schemaField.data['maxSelect'] != 1;
+
+        final existing = recordDataForCache[fieldName];
+        if (existing == null) {
+          recordDataForCache[fieldName] = isMultiSelect ? [filename] : filename;
+        } else if (existing is List) {
+          existing.add(filename);
         } else {
-          print(msg);
+          // It was a string, but now we have another file. This case shouldn't
+          // happen if the schema is respected, but as a fallback, convert to list.
+          recordDataForCache[fieldName] = [existing, filename];
         }
       }
     }
 
-    if (fetchPolicy.isCache) {
-      final data = await client.db.$update(
+    if (requestPolicy.isNetwork && client.connectivity.isConnected) {
+      try {
+        result = await super.update(
+          id,
+          body: body,
+          query: query,
+          headers: headers,
+          expand: expand,
+          fields: fields,
+          // Create fresh MultipartFile instances for the network call
+          files: bufferedFilesData.map((d) {
+            return http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2);
+          }).toList(),
+        );
+        savedToNetwork = true;
+        recordDataForCache = result.toJson();
+      } on ClientException catch (e) {
+        if (e.statusCode == 404 || e.statusCode == 400) {
+          // 400 might be "record not found" if ID is in body
+          // If update failed with 404 (record not found), try to create
+          try {
+            result = await super.create(
+              body: {
+                ...body,
+                'id': id
+              }, // Ensure ID is part of the body for create
+              query: query,
+              headers: headers,
+              expand: expand,
+              fields: fields,
+              // Create fresh MultipartFile instances for the network call
+              files: bufferedFilesData.map((d) {
+                return http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2);
+              }).toList(),
+            );
+            savedToNetwork = true;
+            recordDataForCache = result.toJson();
+          } catch (createE) {
+            final msg =
+                'Failed to update (then create) record $id in $service: $e, then $createE';
+            if (requestPolicy == RequestPolicy.networkOnly) {
+              throw Exception(msg);
+            }
+            debugPrint(msg);
+          }
+        } else {
+          final msg = 'Failed to update record $id in $service: $e';
+          if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
+          debugPrint(msg);
+        }
+      } catch (e) {
+        final msg = 'Failed to update record $id in $service: $e';
+        if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
+        debugPrint(msg);
+      }
+    }
+
+    if (requestPolicy.isCache) {
+      // Determine if this operation should be excluded from automatic sync.
+      final shouldNoSync = requestPolicy == RequestPolicy.cacheOnly;
+      final localRecordData = await client.db.$update(
         service,
         id,
         {
-          ...result?.toJson() ?? body,
           'deleted': false,
-          'synced': saved,
+          ...recordDataForCache,
+          'synced': savedToNetwork,
           'isNew': false,
+          'noSync': shouldNoSync,
         },
       );
-      result = itemFactoryFunc(data);
+
+      // Cache files associated with this update
+      if (bufferedFilesData.isNotEmpty) {
+        final recordIdForFiles = id;
+        for (final fileData in bufferedFilesData) {
+          final dynamic filenamesInRecord = recordDataForCache[fileData.$1];
+          final bytes = fileData.$3; // Use bytes directly from buffer
+
+          if (filenamesInRecord is String) {
+            // Handle single file field
+            await _cacheFileBlob(recordIdForFiles, filenamesInRecord, bytes);
+          } else if (filenamesInRecord is List &&
+              filenamesInRecord.isNotEmpty) {
+            // Handle multi-file field by finding the matching original filename
+            final originalFilename = fileData.$2;
+            if (originalFilename == null) continue;
+
+            final serverFilename = filenamesInRecord.firstWhere((f) {
+              if (f is! String) return false;
+              // Exact match (cacheOnly case)
+              if (f == originalFilename) return true;
+
+              // Check for server-renamed pattern
+              final dotIndex = originalFilename.lastIndexOf('.');
+              if (dotIndex == -1) return false; // No extension
+              final nameWithoutExt = originalFilename.substring(0, dotIndex);
+              return f.startsWith('${nameWithoutExt}_');
+            }, orElse: () => ''); // Return '' if not found
+
+            if (serverFilename.isNotEmpty) {
+              await _cacheFileBlob(recordIdForFiles, serverFilename, bytes);
+            }
+          }
+        }
+      }
+      result = itemFactoryFunc(localRecordData);
+    }
+
+    // Similar null checks and error throwing as in `create`
+    if (result == null && requestPolicy == RequestPolicy.networkOnly) {
+      throw Exception(
+          'Failed to update record $id in $service and networkOnly policy was used.');
+    }
+    if (result == null && requestPolicy == RequestPolicy.cacheOnly) {
+      throw Exception(
+          'Failed to update record $id in $service for cacheOnly policy.');
     }
 
     return result!;
@@ -425,14 +635,14 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
   @override
   Future<void> delete(
     String id, {
-    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Map<String, dynamic> body = const {},
     Map<String, dynamic> query = const {},
     Map<String, String> headers = const {},
   }) async {
     bool saved = false;
 
-    if (fetchPolicy.isNetwork) {
+    if (requestPolicy.isNetwork && client.connectivity.isConnected) {
       try {
         await super.delete(
           id,
@@ -443,15 +653,15 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         saved = true;
       } catch (e) {
         final msg = 'Failed to delete record $id in $service: $e';
-        if (fetchPolicy == FetchPolicy.networkOnly) {
+        if (requestPolicy == RequestPolicy.networkOnly) {
           throw Exception(msg);
         } else {
-          print(msg);
+          debugPrint(msg);
         }
       }
     }
 
-    if (fetchPolicy.isCache) {
+    if (requestPolicy.isCache) {
       if (saved) {
         await client.db.$delete(service, id);
       } else {
@@ -460,10 +670,10 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
           body: {
             ...body,
             'deleted': true,
-            'synced': false,
           },
           query: query,
           headers: headers,
+          requestPolicy: requestPolicy,
         );
       }
     }
@@ -482,44 +692,61 @@ class RetryProgressEvent {
   double get progress => current / total;
 }
 
-enum FetchPolicy {
+enum RequestPolicy {
   cacheOnly,
   networkOnly,
   cacheAndNetwork,
 }
 
-extension FetchPolicyUtils on FetchPolicy {
-  bool get isNetwork => this == FetchPolicy.networkOnly || this == FetchPolicy.cacheAndNetwork;
-  bool get isCache => this == FetchPolicy.cacheOnly || this == FetchPolicy.cacheAndNetwork;
+extension RequestPolicyUtils on RequestPolicy {
+  bool get isNetwork =>
+      this == RequestPolicy.networkOnly ||
+      this == RequestPolicy.cacheAndNetwork;
+  bool get isCache =>
+      this == RequestPolicy.cacheOnly || this == RequestPolicy.cacheAndNetwork;
 
   Future<T> fetch<T>({
     required String label,
+    required $PocketBase client,
     required Future<T> Function() remote,
     required Future<T> Function() getLocal,
     required Future<void> Function(T) setLocal,
     // Duration timeout = const Duration(seconds: 3),
   }) async {
-    print('fetch policy: $label, $name');
+    client.logger.finer('Fetching "$label" with policy "$name"');
     T? result;
 
     if (isNetwork) {
-      try {
-        print('fetching remote...');
-        result = await remote();
-      } catch (e) {
-        print('error remote... $e');
-        if (this == FetchPolicy.networkOnly) {
-          throw Exception('Failed to get $e');
+      // Proactive connectivity check.
+      if (!client.connectivity.isConnected) {
+        client.logger
+            .info('Device is offline. Skipping network request for "$label".');
+        if (this == RequestPolicy.networkOnly) {
+          throw Exception(
+              'Device is offline and RequestPolicy.networkOnly was requested.');
+        }
+        // Fall through to cache if possible.
+      } else {
+        // Device is online, proceed with network request.
+        try {
+          client.logger.finer('Fetching remote for "$label"...');
+          result = await remote();
+        } catch (e) {
+          client.logger.warning('Remote fetch for "$label" failed.', e);
+          if (this == RequestPolicy.networkOnly) {
+            throw Exception('Failed to get $e');
+          }
         }
       }
     }
 
     if (isCache) {
       if (result != null) {
-        print('setting cache...');
+        client.logger.finer('Got remote data for "$label", updating cache...');
         await setLocal(result);
       } else {
-        print('fetching cache...');
+        client.logger
+            .finer('No remote data for "$label", fetching from cache...');
         result = await getLocal();
       }
     }

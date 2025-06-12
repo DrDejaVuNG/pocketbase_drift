@@ -1,5 +1,5 @@
 name: pocketbase_drift
-description: A pocketbase client backed by drift database.\
+description: A pocketbase client backed by drift database.
 version: 0.1.0
 
 environment:
@@ -9,22 +9,24 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^0.13.5
-  pocketbase: ^0.10.3
-  drift: ^2.6.0
-  sqlite3_flutter_libs: ^0.5.13
-  path_provider: ^2.0.14
-  path: ^1.8.2
-  sqlite3: ^2.0.0
-  drift_dev: ^2.1.0
+  http: ^1.4.0
+  logging: ^1.3.0
+  connectivity_plus: ^6.1.4
+  pocketbase: ^0.23.0
+  drift: ^2.26.1
+  sqlite3_flutter_libs: ^0.5.32
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  sqlite3: ^2.7.6
   shortid: ^0.1.2
-  shared_preferences: ^2.2.0
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.1
-  build_runner: ^2.3.3
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.15
+  drift_dev: ^2.26.1
 
 flutter:
 

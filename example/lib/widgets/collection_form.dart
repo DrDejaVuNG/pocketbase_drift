@@ -56,7 +56,7 @@ class _CollectionFormState extends State<CollectionForm> {
         autovalidateMode: AutovalidateMode.always,
         child: ListView(
           children: [
-            for (final field in widget.collection.schema)
+            for (final field in widget.collection.fields)
               SchemeFieldFormField(
                 field: field,
                 data: _data,
@@ -75,7 +75,7 @@ class SchemeFieldFormField extends StatefulWidget {
     required this.data,
   });
 
-  final SchemaField field;
+  final CollectionField field;
   final Map<String, dynamic> data;
 
   @override

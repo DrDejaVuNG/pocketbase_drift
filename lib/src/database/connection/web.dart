@@ -1,7 +1,5 @@
 import 'dart:async';
 
-// ignore: avoid_web_libraries_in_flutter
-
 import 'package:drift/drift.dart';
 import 'package:drift/wasm.dart';
 import 'package:flutter/foundation.dart';
@@ -17,6 +15,7 @@ DatabaseConnection connect(
       final sqlite = await WasmSqlite3.loadFromUrl(
         Uri.parse('/sqlite3.wasm'),
       );
+      sqlite.registerVirtualFileSystem(InMemoryFileSystem(), makeDefault: true);
       return DatabaseConnection(
         WasmDatabase.inMemory(
           sqlite,
