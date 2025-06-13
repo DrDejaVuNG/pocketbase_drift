@@ -18,7 +18,7 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
 *   **Authentication Persistence**: User and admin authentication state is persisted locally using `shared_preferences`, keeping users logged in across app sessions.
 *   **Cross-Platform Support**: Works across all Flutter-supported platforms, including mobile (iOS, Android), web, and desktop (macOS, Windows, Linux).
 *   **Basic File & Image Caching**: Includes a `PocketBaseImageProvider` that caches images in the local database for offline display.
--   **Robust & Performant**: Includes optimizations for batching queries and handling large files with streams.
+-   **Robust & Performant**: Includes optimizations for batching queries and file streaming on all platforms to handle large files efficiently.
 
 ## Getting Started
 
@@ -28,7 +28,7 @@ Add the following packages to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pocketbase_drift: ^0.1.0 # Use the latest version
+  pocketbase_drift: ^0.2.0 # Use the latest version
 ```
 
 ### 2. Initialize the Client
@@ -48,7 +48,7 @@ Replace a standard `PocketBase` client with a `$PocketBase.database` client. It'
 For web, you need to follow the instructions for [Drift on the Web](https://drift.simonbinder.eu/web/#drift-wasm) to copy the `sqlite3.wasm` binary and `drift_worker.js` file into your `web/` directory.
 
 1.  Download the latest `sqlite3.wasm` from the [sqlite3.dart releases](https://github.com/simolus3/sqlite3.dart/releases) and the latest `drift_worker.js` from the [drift releases](https://github.com/simolus3/drift/releases).
-2.  Place the each file inside your project's `web/` folder.
+2.  Place each file inside your project's `web/` folder.
 3.  Rename `drift_worker.js` to `drift_worker.dart.js`.
 
 ## Core Concepts
@@ -69,7 +69,8 @@ The `RequestPolicy` enum is central to this library and controls how requests ar
 
 -   `RequestPolicy.cacheOnly`:
     -   Only ever reads data from the local cache.
-    -   Never makes a network request. Useful for offline-first UI and speed.
+    -   Never makes a network request.
+    -   **Important**: Records created or updated with this policy are marked with a `noSync` flag and will **not** be automatically synced to the server when connectivity is restored. This is useful for data that should only ever exist on the local device.
 
 -   `RequestPolicy.networkOnly`:
     -   Only ever reads data from the remote server.
@@ -156,4 +157,3 @@ final bytes = await client.files.get(postRecord, 'my_image_field.jpg');
 -   [X] Add support for indirect expand (e.g., `post.author.avatar`)
 -   [X] Add support for more complex query operators (e.g., ~ for LIKE/Contains)
 -   [X] More comprehensive test suite for edge cases
-```

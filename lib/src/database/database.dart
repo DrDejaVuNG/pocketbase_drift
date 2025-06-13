@@ -45,7 +45,7 @@ class DataBase extends _$DataBase {
     }
   }
 
-  String queryBuilder(
+  (String, List<Variable>) queryBuilder(
     String service, {
     String? fields,
     String? filter,
@@ -74,6 +74,8 @@ class DataBase extends _$DataBase {
     }
 
     final sb = StringBuffer();
+    final variables = <Variable>[];
+
     sb.write('SELECT ');
     if (fields != null && fields.isNotEmpty) {
       final items = fields.split(',');
@@ -88,7 +90,8 @@ class DataBase extends _$DataBase {
       sb.write('*');
     }
     sb.write(' FROM services');
-    sb.write(" WHERE service = '$service'");
+    sb.write(" WHERE service = ?");
+    variables.add(Variable.withString(service));
 
     if (filter != null && filter.isNotEmpty) {
       // Delegate all filter parsing to the new robust parser.
@@ -123,23 +126,31 @@ class DataBase extends _$DataBase {
       }
     }
     if (limit != null) {
-      sb.write(' LIMIT $limit');
+      sb.write(' LIMIT ?');
+      variables.add(Variable.withInt(limit));
     }
     if (offset != null) {
-      sb.write(' OFFSET $offset');
+      sb.write(' OFFSET ?');
+      variables.add(Variable.withInt(offset));
     }
-    return sb.toString();
+    return (sb.toString(), variables);
   }
 
   Selectable<CollectionModel> $collections({
     String? service,
   }) {
-    var str = "SELECT * FROM services WHERE service = 'schema'";
     if (service != null) {
-      str += " AND json_extract(services.data, '\$.name') = '$service'";
+      final query = customSelect(
+        "SELECT * FROM services WHERE service = 'schema' AND json_extract(services.data, '\$.name') = ?",
+        variables: [Variable.withString(service)],
+      ).map(parseRow);
+      return query.map(CollectionModel.fromJson);
+    } else {
+      final query = customSelect(
+        "SELECT * FROM services WHERE service = 'schema'",
+      ).map(parseRow);
+      return query.map(CollectionModel.fromJson);
     }
-    final query = customSelect(str).map(parseRow);
-    return query.map(CollectionModel.fromJson);
   }
 
   Selectable<Map<String, dynamic>> $query(
@@ -151,7 +162,7 @@ class DataBase extends _$DataBase {
     int? offset,
     int? limit,
   }) {
-    final query = queryBuilder(
+    final (query, variables) = queryBuilder(
       service,
       fields: fields,
       filter: filter,
@@ -159,9 +170,10 @@ class DataBase extends _$DataBase {
       offset: offset,
       limit: limit,
     );
-    logger.finer('query: $query');
+    logger.finer('query: $query, variables: $variables');
     return customSelect(
       query,
+      variables: variables,
       readsFrom: {services},
     ).asyncMap((r) async {
       final record = parseRow(r);
@@ -278,12 +290,13 @@ class DataBase extends _$DataBase {
   }
 
   Future<int> $count(String service) async {
-    final query = queryBuilder(
+    final (query, variables) = queryBuilder(
       service,
       fields: 'COUNT(*)',
     );
     final result = await customSelect(
       query,
+      variables: variables,
       readsFrom: {services},
     ).getSingleOrNull();
     return result?.read<int>('COUNT(*)') ?? 0;

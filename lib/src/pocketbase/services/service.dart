@@ -11,6 +11,90 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
   @override
   $PocketBase get client;
 
+  /// Private helper to read MultipartFiles into a memory buffer.
+  /// This is necessary because a stream can only be read once.
+  Future<List<(String field, String? filename, Uint8List bytes)>> _bufferFiles(
+    List<http.MultipartFile> files,
+  ) async {
+    if (files.isEmpty) return [];
+    final buffered = <(String, String?, Uint8List)>[];
+    for (final file in files) {
+      final bytes = await file.finalize().toBytes();
+      buffered.add((file.field, file.filename, bytes));
+    }
+    return buffered;
+  }
+
+  /// Private helper to modify the request body for cache-only file uploads.
+  /// It adds the original filenames to the body, looking up the schema to
+  /// determine if the field is single or multi-select.
+  Future<void> _prepareCacheOnlyBody(
+    Map<String, dynamic> body,
+    List<(String field, String? filename, Uint8List bytes)> files,
+  ) async {
+    if (files.isEmpty) return;
+
+    final collection =
+        await client.db.$collections(service: service).getSingle();
+    for (final file in files) {
+      final fieldName = file.$1;
+      final filename = file.$2;
+      if (filename == null) continue;
+
+      final schemaField =
+          collection.fields.firstWhere((f) => f.name == fieldName);
+      final isMultiSelect = schemaField.data['maxSelect'] != 1;
+
+      final existing = body[fieldName];
+      if (existing == null) {
+        body[fieldName] = isMultiSelect ? [filename] : filename;
+      } else if (existing is List) {
+        if (!existing.contains(filename)) existing.add(filename);
+      } else if (existing is String) {
+        body[fieldName] = [existing, filename];
+      }
+    }
+  }
+
+  /// Private helper to save buffered file blobs to the local database.
+  Future<void> _cacheFilesToDb(
+    String recordId,
+    Map<String, dynamic> recordData,
+    List<(String field, String? filename, Uint8List bytes)> bufferedFiles,
+  ) async {
+    if (bufferedFiles.isEmpty) return;
+
+    for (final fileData in bufferedFiles) {
+      final fieldName = fileData.$1;
+      final originalFilename = fileData.$2;
+      final bytes = fileData.$3;
+      final dynamic filenamesInRecord = recordData[fieldName];
+
+      if (originalFilename == null) continue;
+
+      if (filenamesInRecord is String) {
+        await _cacheFileBlob(recordId, filenamesInRecord, bytes);
+      } else if (filenamesInRecord is List && filenamesInRecord.isNotEmpty) {
+        // Find the server-generated filename that corresponds to the original.
+        final serverFilename = filenamesInRecord.firstWhere(
+          (f) {
+            if (f is! String) return false;
+            if (f == originalFilename) return true; // Cache-only exact match
+            final dotIndex = originalFilename.lastIndexOf('.');
+            if (dotIndex == -1) return false;
+            final nameWithoutExt = originalFilename.substring(0, dotIndex);
+            return f.startsWith('${nameWithoutExt}_');
+          },
+          orElse: () => '',
+        );
+
+        if (serverFilename.isNotEmpty) {
+          await _cacheFileBlob(recordId, serverFilename, bytes);
+        }
+      }
+    }
+  }
+
   @override
   Future<M> getOne(
     String id, {
@@ -293,46 +377,13 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? expand,
     String? fields,
   }) async {
-    // Buffer the raw file data immediately. A MultipartFile can only be read once.
-    final List<(String field, String? filename, Uint8List bytes)>
-        bufferedFilesData = [];
-    if (files.isNotEmpty) {
-      for (final file in files) {
-        final bytes = await file.finalize().toBytes();
-        bufferedFilesData.add((file.field, file.filename, bytes));
-      }
-    }
-
+    final bufferedFiles = await _bufferFiles(files);
+    Map<String, dynamic> recordDataForCache = Map.from(body);
     M? result;
     bool savedToNetwork = false;
-    Map<String, dynamic> recordDataForCache =
-        Map.from(body); // Start with body for cache
 
-    // For cache-only, we need to manually add filenames to the record data
     if (requestPolicy == RequestPolicy.cacheOnly) {
-      for (final file in files) {
-        final fieldName = file.field;
-        final filename = file.filename;
-        if (filename == null) continue;
-
-        // We MUST look up the schema to know if the field is multi-select.
-        final collection =
-            await client.db.$collections(service: service).getSingle();
-        final schemaField =
-            collection.fields.firstWhere((f) => f.name == fieldName);
-        final isMultiSelect = schemaField.data['maxSelect'] != 1;
-
-        final existing = recordDataForCache[fieldName];
-        if (existing == null) {
-          recordDataForCache[fieldName] = isMultiSelect ? [filename] : filename;
-        } else if (existing is List) {
-          existing.add(filename);
-        } else {
-          // It was a string, but now we have another file. This case shouldn't
-          // happen if the schema is respected, but as a fallback, convert to list.
-          recordDataForCache[fieldName] = [existing, filename];
-        }
-      }
+      await _prepareCacheOnlyBody(recordDataForCache, bufferedFiles);
     }
 
     if (requestPolicy.isNetwork && client.connectivity.isConnected) {
@@ -343,17 +394,15 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
           headers: headers,
           expand: expand,
           fields: fields,
-          // Create fresh MultipartFile instances for the network call
-          files: bufferedFilesData.map((d) {
-            return http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2);
-          }).toList(),
+          files: bufferedFiles
+              .map((d) =>
+                  http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+              .toList(),
         );
         savedToNetwork = true;
-        recordDataForCache =
-            result.toJson(); // Use network result for cache if successful
+        recordDataForCache = result.toJson();
       } on ClientException catch (e) {
         if (e.statusCode == 400 && body['id'] != null) {
-          // If create failed with 400 (e.g. record exists), try to update
           final id = body['id'] as String;
           final updateBody = Map<String, dynamic>.from(body)..remove('id');
           try {
@@ -361,10 +410,13 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
               id,
               body: updateBody,
               query: query,
-              files: files,
               headers: headers,
               expand: expand,
               fields: fields,
+              files: bufferedFiles
+                  .map((d) =>
+                      http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+                  .toList(),
             );
             savedToNetwork = true;
             recordDataForCache = result.toJson();
@@ -374,17 +426,17 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
             if (requestPolicy == RequestPolicy.networkOnly) {
               throw Exception(msg);
             }
-            debugPrint(msg);
+            client.logger.warning(msg);
           }
         } else {
           final msg = 'Failed to create record $body in $service: $e';
           if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
-          debugPrint(msg);
+          client.logger.warning(msg);
         }
       } catch (e) {
         final msg = 'Failed to create record $body in $service: $e';
         if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
-        debugPrint(msg);
+        client.logger.warning(msg);
       }
     }
 
@@ -402,59 +454,17 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
       );
 
       final recordIdForFiles = localRecordData['id'] as String?;
-      if (recordIdForFiles != null && bufferedFilesData.isNotEmpty) {
-        for (final fileData in bufferedFilesData) {
-          // Get the filename(s) from the record data we just prepared.
-          // It will be the server-generated one for network, or original for cache-only.
-          final dynamic filenamesInRecord = recordDataForCache[fileData.$1];
-          final bytes = fileData.$3; // Use bytes directly from buffer
-
-          if (filenamesInRecord is String) {
-            // Handle single file field
-            await _cacheFileBlob(recordIdForFiles, filenamesInRecord, bytes);
-          } else if (filenamesInRecord is List &&
-              filenamesInRecord.isNotEmpty) {
-            // Handle multi-file field by finding the matching original filename
-            final originalFilename = fileData.$2;
-            if (originalFilename == null) continue;
-
-            final serverFilename = filenamesInRecord.firstWhere((f) {
-              if (f is! String) return false;
-              // Exact match (cacheOnly case)
-              if (f == originalFilename) return true;
-
-              // Check for server-renamed pattern
-              final dotIndex = originalFilename.lastIndexOf('.');
-              if (dotIndex == -1) return false; // No extension
-              final nameWithoutExt = originalFilename.substring(0, dotIndex);
-              return f.startsWith('${nameWithoutExt}_');
-            }, orElse: () => ''); // Return '' if not found
-
-            if (serverFilename.isNotEmpty) {
-              await _cacheFileBlob(recordIdForFiles, serverFilename, bytes);
-            }
-          }
-        }
+      if (recordIdForFiles != null) {
+        await _cacheFilesToDb(recordIdForFiles, localRecordData, bufferedFiles);
       }
       result = itemFactoryFunc(localRecordData);
     }
 
-    if (result == null && requestPolicy == RequestPolicy.networkOnly) {
+    if (result == null) {
       throw Exception(
-          'Failed to create record $body in $service and networkOnly policy was used.');
+          'Failed to create record $body in $service with policy ${requestPolicy.name}.');
     }
-    if (result == null && requestPolicy == RequestPolicy.cacheOnly) {
-      // If cacheOnly, we should have a result from client.db.$create
-      // This path should ideally not be hit if db.$create is successful
-      throw Exception(
-          'Failed to create record $body in $service for cacheOnly policy.');
-    }
-    // If result is still null here for cacheAndNetwork, it means both network and cache ops might have had issues
-    // or the db.$create didn't return a usable item, which is unlikely if it doesn't throw.
-    // However, if itemFactoryFunc needs a non-null map, this could be an issue.
-    // For now, we assume db.$create always gives something itemFactoryFunc can use or throws.
-
-    return result!; // Assuming result will be non-null if not networkOnly
+    return result;
   }
 
   @override
@@ -468,46 +478,13 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? expand,
     String? fields,
   }) async {
-    // Buffer the raw file data immediately. A MultipartFile can only be read once.
-    final List<(String field, String? filename, Uint8List bytes)>
-        bufferedFilesData = [];
-    if (files.isNotEmpty) {
-      for (final file in files) {
-        final bytes = await file.finalize().toBytes();
-        bufferedFilesData.add((file.field, file.filename, bytes));
-      }
-    }
-
+    final bufferedFiles = await _bufferFiles(files);
+    Map<String, dynamic> recordDataForCache = Map.from(body);
     M? result;
     bool savedToNetwork = false;
-    Map<String, dynamic> recordDataForCache = Map.from(body);
 
-    // For cache-only, we need to manually add filenames to the record data
     if (requestPolicy == RequestPolicy.cacheOnly) {
-      for (final file in files) {
-        // Find the corresponding buffered data to get the filename
-        final fieldName = file.field;
-        final filename = file.filename;
-        if (filename == null) continue;
-
-        // We MUST look up the schema to know if the field is multi-select.
-        final collection =
-            await client.db.$collections(service: service).getSingle();
-        final schemaField =
-            collection.fields.firstWhere((f) => f.name == fieldName);
-        final isMultiSelect = schemaField.data['maxSelect'] != 1;
-
-        final existing = recordDataForCache[fieldName];
-        if (existing == null) {
-          recordDataForCache[fieldName] = isMultiSelect ? [filename] : filename;
-        } else if (existing is List) {
-          existing.add(filename);
-        } else {
-          // It was a string, but now we have another file. This case shouldn't
-          // happen if the schema is respected, but as a fallback, convert to list.
-          recordDataForCache[fieldName] = [existing, filename];
-        }
-      }
+      await _prepareCacheOnlyBody(recordDataForCache, bufferedFiles);
     }
 
     if (requestPolicy.isNetwork && client.connectivity.isConnected) {
@@ -519,31 +496,26 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
           headers: headers,
           expand: expand,
           fields: fields,
-          // Create fresh MultipartFile instances for the network call
-          files: bufferedFilesData.map((d) {
-            return http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2);
-          }).toList(),
+          files: bufferedFiles
+              .map((d) =>
+                  http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+              .toList(),
         );
         savedToNetwork = true;
         recordDataForCache = result.toJson();
       } on ClientException catch (e) {
         if (e.statusCode == 404 || e.statusCode == 400) {
-          // 400 might be "record not found" if ID is in body
-          // If update failed with 404 (record not found), try to create
           try {
             result = await super.create(
-              body: {
-                ...body,
-                'id': id
-              }, // Ensure ID is part of the body for create
+              body: {...body, 'id': id},
               query: query,
               headers: headers,
               expand: expand,
               fields: fields,
-              // Create fresh MultipartFile instances for the network call
-              files: bufferedFilesData.map((d) {
-                return http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2);
-              }).toList(),
+              files: bufferedFiles
+                  .map((d) =>
+                      http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+                  .toList(),
             );
             savedToNetwork = true;
             recordDataForCache = result.toJson();
@@ -553,22 +525,21 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
             if (requestPolicy == RequestPolicy.networkOnly) {
               throw Exception(msg);
             }
-            debugPrint(msg);
+            client.logger.warning(msg);
           }
         } else {
           final msg = 'Failed to update record $id in $service: $e';
           if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
-          debugPrint(msg);
+          client.logger.warning(msg);
         }
       } catch (e) {
         final msg = 'Failed to update record $id in $service: $e';
         if (requestPolicy == RequestPolicy.networkOnly) throw Exception(msg);
-        debugPrint(msg);
+        client.logger.warning(msg);
       }
     }
 
     if (requestPolicy.isCache) {
-      // Determine if this operation should be excluded from automatic sync.
       final shouldNoSync = requestPolicy == RequestPolicy.cacheOnly;
       final localRecordData = await client.db.$update(
         service,
@@ -581,55 +552,15 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
           'noSync': shouldNoSync,
         },
       );
-
-      // Cache files associated with this update
-      if (bufferedFilesData.isNotEmpty) {
-        final recordIdForFiles = id;
-        for (final fileData in bufferedFilesData) {
-          final dynamic filenamesInRecord = recordDataForCache[fileData.$1];
-          final bytes = fileData.$3; // Use bytes directly from buffer
-
-          if (filenamesInRecord is String) {
-            // Handle single file field
-            await _cacheFileBlob(recordIdForFiles, filenamesInRecord, bytes);
-          } else if (filenamesInRecord is List &&
-              filenamesInRecord.isNotEmpty) {
-            // Handle multi-file field by finding the matching original filename
-            final originalFilename = fileData.$2;
-            if (originalFilename == null) continue;
-
-            final serverFilename = filenamesInRecord.firstWhere((f) {
-              if (f is! String) return false;
-              // Exact match (cacheOnly case)
-              if (f == originalFilename) return true;
-
-              // Check for server-renamed pattern
-              final dotIndex = originalFilename.lastIndexOf('.');
-              if (dotIndex == -1) return false; // No extension
-              final nameWithoutExt = originalFilename.substring(0, dotIndex);
-              return f.startsWith('${nameWithoutExt}_');
-            }, orElse: () => ''); // Return '' if not found
-
-            if (serverFilename.isNotEmpty) {
-              await _cacheFileBlob(recordIdForFiles, serverFilename, bytes);
-            }
-          }
-        }
-      }
+      await _cacheFilesToDb(id, localRecordData, bufferedFiles);
       result = itemFactoryFunc(localRecordData);
     }
 
-    // Similar null checks and error throwing as in `create`
-    if (result == null && requestPolicy == RequestPolicy.networkOnly) {
+    if (result == null) {
       throw Exception(
-          'Failed to update record $id in $service and networkOnly policy was used.');
+          'Failed to update record $id in $service with policy ${requestPolicy.name}.');
     }
-    if (result == null && requestPolicy == RequestPolicy.cacheOnly) {
-      throw Exception(
-          'Failed to update record $id in $service for cacheOnly policy.');
-    }
-
-    return result!;
+    return result;
   }
 
   @override
@@ -656,7 +587,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         if (requestPolicy == RequestPolicy.networkOnly) {
           throw Exception(msg);
         } else {
-          debugPrint(msg);
+          client.logger.warning(msg);
         }
       }
     }

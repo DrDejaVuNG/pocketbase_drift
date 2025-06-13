@@ -50,7 +50,7 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   /// decodes them using the provided [decode] callback.
   Future<ui.Codec> _loadAsync(PocketBaseImageProvider key, decode) async {
     final bytes = await download();
-    if (bytes == null || bytes.isEmpty) {
+    if (bytes.isEmpty) {
       PaintingBinding.instance.imageCache.evict(key);
       throw StateError(
           '${key.filename} is empty and cannot be loaded as an image.');
@@ -98,7 +98,7 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   ///
   /// This method uses the `client.files.get` method from the PocketBase SDK,
   /// which is expected to handle caching and network policies.
-  Future<Uint8List?> download() async {
+  Future<Uint8List> download() async {
     // The image provider's entire cache/network logic is now handled by the FileService.
     // We use a network-first policy by default for images to ensure they are up-to-date.
     return client.files.get(record, filename,

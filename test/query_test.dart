@@ -48,37 +48,37 @@ void main() {
 
   group('query builder', () {
     test('empty', () async {
-      final statement = db.queryBuilder('todo');
-      expect(statement, 'SELECT * FROM services WHERE service = \'todo\'');
+      final (statement, variables) = db.queryBuilder('todo');
+      expect(statement, 'SELECT * FROM services WHERE service = ?');
+      expect(variables, [Variable.withString('todo')]);
     });
 
     test('fields', () async {
-      final statement = db.queryBuilder('todo', fields: 'id, created');
-      final statement2 = db.queryBuilder('todo', fields: 'id, name');
-      expect(statement,
-          'SELECT id, created FROM services WHERE service = \'todo\'');
+      final (statement, _) = db.queryBuilder('todo', fields: 'id, created');
+      final (statement2, _) = db.queryBuilder('todo', fields: 'id, name');
+      expect(statement, 'SELECT id, created FROM services WHERE service = ?');
       expect(statement2,
-          "SELECT id, json_extract(services.data, '\$.name') as name FROM services WHERE service = 'todo'");
+          "SELECT id, json_extract(services.data, '\$.name') as name FROM services WHERE service = ?");
     });
 
     test('sort', () async {
-      final statement1 = db.queryBuilder('todo', sort: '-created,id');
-      final statement2 = db.queryBuilder('todo', sort: '+name,id');
+      final (statement1, _) = db.queryBuilder('todo', sort: '-created,id');
+      final (statement2, _) = db.queryBuilder('todo', sort: '+name,id');
       expect(statement1,
-          'SELECT * FROM services WHERE service = \'todo\' ORDER BY created DESC, id ASC');
+          'SELECT * FROM services WHERE service = ? ORDER BY created DESC, id ASC');
       expect(statement2,
-          "SELECT * FROM services WHERE service = 'todo' ORDER BY json_extract(services.data, '\$.name') ASC, id ASC");
+          "SELECT * FROM services WHERE service = ? ORDER BY json_extract(services.data, '\$.name') ASC, id ASC");
     });
 
     test('all', () async {
-      final statement = db.queryBuilder(
+      final (statement, _) = db.queryBuilder(
         'todo',
         sort: '-created,id',
         fields: 'id, created',
         filter: 'id = "1234"',
       );
       expect(statement,
-          'SELECT id, created FROM services WHERE service = \'todo\' AND (id = "1234") ORDER BY created DESC, id ASC');
+          'SELECT id, created FROM services WHERE service = ? AND (id = "1234") ORDER BY created DESC, id ASC');
     });
 
     // test('string multi split', () {
@@ -89,33 +89,21 @@ void main() {
     // });
 
     test('json_extract fields', () {
-      final statement = db.queryBuilder('todo', fields: 'id, name');
+      final (statement, _) = db.queryBuilder('todo', fields: 'id, name');
       expect(statement,
-          "SELECT id, json_extract(services.data, '\$.name') as name FROM services WHERE service = 'todo'");
+          "SELECT id, json_extract(services.data, '\$.name') as name FROM services WHERE service = ?");
     });
 
     test('json_extract filter', () {
-      final statement = db.queryBuilder('todo', filter: 'name = "test1"');
+      final (statement, _) = db.queryBuilder('todo', filter: 'name = "test1"');
       expect(statement,
-          "SELECT * FROM services WHERE service = 'todo' AND (json_extract(services.data, '\$.name') = \"test1\")");
+          "SELECT * FROM services WHERE service = ? AND (json_extract(services.data, '\$.name') = \"test1\")");
     });
 
     test('queryBuilder field name replacement with word boundaries', () {
-      // Assume 'user' is a field, and 'super_user_role' is another field or text.
-      // The schema doesn't have this, but we test the builder's logic.
-      // We'll "pretend" 'user' is a custom field for a hypothetical 'tasks' collection.
-      final statement = db.queryBuilder('tasks',
+      final (statement, _) = db.queryBuilder('tasks',
           filter: 'user = "abc" AND super_user_role = "admin"');
 
-      // Expect 'user' to be replaced, but 'super_user_role' not to be (partially) if 'user_role' was the field.
-      // Or if 'super_user_role' is a field itself, it would be replaced correctly.
-      // For this test, we assume 'user' is a field that needs json_extract, and 'super_user_role' is another such field.
-      // final expected = "SELECT * FROM services WHERE service = 'tasks' AND (json_extract(services.data, '\$.user') = \"abc\" AND json_extract(services.data, '\$.super_user_role') = \"admin\")";
-      // This requires 'user' and 'super_user_role' to be processed by fixField in the loop.
-      // The current fixField loop logic is a bit simplified for this, but \b should help.
-      // Let's refine the expectation based on current implementation
-      // The regex `\bfield\b` should correctly replace `user` and `super_user_role` if they are distinct fields.
-      // The test will pass if `json_extract` is correctly applied to both.
       expect(
           statement.contains("json_extract(services.data, '\$.user')"), isTrue);
       expect(

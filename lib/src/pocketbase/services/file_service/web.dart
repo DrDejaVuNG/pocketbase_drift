@@ -52,28 +52,29 @@ class $FileService extends FileService {
         'Could not get file "$filename" with policy "$requestPolicy"');
   }
 
-  /// Downloads a file.
-  ///
-  /// Note: The web implementation does not currently use streaming and loads
-  /// the file into memory. This is generally acceptable for web but could be
-  /// optimized further if very large files are expected.
+  /// Downloads a file using a streaming approach to improve performance for
+  /// larger files compared to loading the entire file into memory at once.
   Future<Uint8List> getFileBytes(
     RecordModel record,
     String filename, {
     String? thumb,
   }) async {
     final url = getUrl(record, filename, thumb: thumb);
-    final response = await http.get(url);
 
-    if (response.statusCode != 200) {
+    final httpClient = client.httpClientFactory();
+    final request = http.Request('GET', url);
+    final streamedResponse = await httpClient.send(request);
+
+    if (streamedResponse.statusCode != 200) {
       throw ClientException(
         url: url,
         response: {
           'message':
-              'Failed to download file. Status code: ${response.statusCode}'
+              'Failed to download file. Status code: ${streamedResponse.statusCode}'
         },
       );
     }
-    return response.bodyBytes;
+
+    return streamedResponse.stream.toBytes();
   }
 }

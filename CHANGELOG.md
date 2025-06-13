@@ -1,3 +1,8 @@
+## 0.2.0
+
+*   Improved maintainability by refactoring the large `create` and `update` methods in the internal `ServiceMixin` into smaller, more manageable helper methods.
+*   Improved web performance by switching from a full `http.get()` to a streaming download for file fetching, aligning it with the more memory-efficient native implementation.
+
 ## 0.1.0
 
 *   **Initial release.**
