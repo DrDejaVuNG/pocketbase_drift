@@ -39,7 +39,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     client = $PocketBase.database(
       url,
-      authStore: $AuthStore(await SharedPreferences.getInstance(), 'pb_auth'),
+      authStore: $AuthStore.prefs(await SharedPreferences.getInstance(), 'pb_auth'),
       connection: DatabaseConnection(NativeDatabase.memory()),
       inMemory: true,
     );

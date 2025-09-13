@@ -22,18 +22,19 @@ class $PocketBase extends PocketBase {
     String baseUrl, {
     bool inMemory = false,
     String lang = "en-US",
-    AuthStore? authStore,
+    $AuthStore? authStore,
     DatabaseConnection? connection,
     String dbName = 'files',
     Client Function()? httpClientFactory,
   }) {
+    final db = DataBase(
+      connection ?? connect(dbName, inMemory: inMemory),
+    );
     return $PocketBase(
       baseUrl,
-      db: DataBase(
-        connection ?? connect(dbName, inMemory: inMemory),
-      ),
+      db: db,
       lang: lang,
-      authStore: authStore,
+      authStore: authStore?..db = db,
       httpClientFactory: httpClientFactory,
     );
   }

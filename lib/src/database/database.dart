@@ -778,6 +778,15 @@ class DataBase extends _$DataBase {
     final result = await query.getSingleOrNull();
     return result?.responseData;
   }
+  
+  Future<void> clearAllData() async {
+    await transaction(() async {
+      await delete(services).go();
+      await delete(blobFiles).go();
+      await delete(cachedResponses).go();
+    });
+    logger.info('All local data has been cleared.');
+  }
 }
 
 // extension StringUtils on String {

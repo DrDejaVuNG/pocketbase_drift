@@ -26,7 +26,7 @@ void main() async {
   final client = $PocketBase.database(
     url,
     inMemory: true,
-    authStore: $AuthStore((await SharedPreferences.getInstance()), 'pb_auth'),
+    authStore: $AuthStore.prefs((await SharedPreferences.getInstance()), 'pb_auth'),
     connection: connect('pocketbase.db', inMemory: true),
   )..logging = kDebugMode;
 
