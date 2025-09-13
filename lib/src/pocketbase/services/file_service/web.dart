@@ -59,7 +59,7 @@ class $FileService extends FileService {
     String filename, {
     String? thumb,
   }) async {
-    final url = getUrl(record, filename, thumb: thumb);
+    final url = getURL(record, filename, thumb: thumb);
 
     final httpClient = client.httpClientFactory();
     final request = http.Request('GET', url);

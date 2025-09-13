@@ -1,24 +1,26 @@
 import 'dart:async';
+import 'dart:collection' show SplayTreeMap;
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:http/http.dart';
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:pocketbase_drift/pocketbase_drift.dart';
 
 class $PocketBase extends PocketBase {
   $PocketBase(
     super.baseUrl, {
-    required this.db, // Receive the db instance
+    required this.db,
     super.lang,
     super.authStore,
     super.httpClientFactory,
   }) : connectivity = ConnectivityService() {
-    _listenForConnectivityChanges(); // Setup listener after initialization
+    _listenForConnectivityChanges();
   }
 
   factory $PocketBase.database(
     String baseUrl, {
     bool inMemory = false,
-    bool autoLoad = true,
     String lang = "en-US",
     AuthStore? authStore,
     DatabaseConnection? connection,
@@ -97,6 +99,102 @@ class $PocketBase extends PocketBase {
       if (!(_syncCompleter?.isCompleted ?? true)) {
         _syncCompleter!.completeError(e);
       }
+    }
+  }
+
+  /// Generates a deterministic cache key for a given request.
+  /// Returns an empty string if the request method is not 'GET',
+  /// signifying that the request should not be cached.
+  String _generateRequestCacheKey(
+    String path, {
+    String method = 'GET',
+    Map<String, dynamic> query = const {},
+    Map<String, dynamic> body = const {},
+  }) {
+    // Only cache idempotent GET requests to avoid side effects.
+    if (method.toUpperCase() != 'GET') {
+      return '';
+    }
+
+    // Sort maps to ensure the key is identical regardless of parameter order.
+    final sortedQuery = SplayTreeMap.from(query);
+    final sortedBody = SplayTreeMap.from(body);
+
+    // Combine all unique request components into a single string.
+    return '$method::$path::${jsonEncode(sortedQuery)}::${jsonEncode(sortedBody)}';
+  }
+
+  /// Sends a single HTTP request with offline caching capabilities.
+  ///
+  /// This method extends the base `send` method to provide offline caching
+  /// based on the provided [RequestPolicy]. Caching is enabled only for
+  /// "GET" requests. For other methods, or if files are being uploaded,
+  /// this method calls the original network-only implementation.
+  @override
+  Future<T> send<T extends dynamic>(
+    String path, {
+    String method = "GET",
+    Map<String, String> headers = const {},
+    Map<String, dynamic> query = const {},
+    Map<String, dynamic> body = const {},
+    List<http.MultipartFile> files = const [],
+    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
+  }) async {
+    final cacheKey = _generateRequestCacheKey(
+      path,
+      method: method,
+      query: query,
+      body: body,
+    );
+
+    // Bypass cache if the key is empty (not a GET request) or files are present.
+    if (cacheKey.isEmpty || files.isNotEmpty) {
+      return super.send<T>(
+        path,
+        method: method,
+        headers: headers,
+        query: query,
+        body: body,
+        files: files,
+      );
+    }
+
+    return requestPolicy.fetch<T>(
+      label: 'send-$cacheKey',
+      client: this,
+      remote: () => super.send<T>(
+        path,
+        method: method,
+        headers: headers,
+        query: query,
+        body: body,
+        files: files,
+      ),
+      getLocal: () async {
+        final cachedJson = await db.getCachedResponse(cacheKey);
+        if (cachedJson == null) {
+          throw Exception(
+              'Response for request ($cacheKey) not found in cache.');
+        }
+        return jsonDecode(cachedJson) as T;
+      },
+      setLocal: (value) async {
+        final jsonString = jsonEncode(value);
+        await db.cacheResponse(cacheKey, jsonString);
+      },
+    );
+  }
+
+  Future<void> cacheSchema(String jsonSchema) async {
+    try {
+      final schema = (jsonDecode(jsonSchema) as List)
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+
+      // Populate the local drift database with the schema.
+      await db.setSchema(schema);
+    } catch (e) {
+      logger.severe('Error caching schema', e);
     }
   }
 

@@ -26,6 +26,23 @@ class BlobFiles extends Table with AutoIncrementingPrimaryKey {
   TextColumn get updated => text().nullable()();
 }
 
+@DataClassName('CachedResponse')
+class CachedResponses extends Table {
+  /// A unique hash of the request details (method, path, query, body)
+  /// that will serve as the primary key.
+  TextColumn get requestKey => text()();
+
+  /// The raw JSON-encoded response data as a string.
+  TextColumn get responseData => text()();
+
+  /// The timestamp of when this cache entry was created. Useful for
+  /// future implementations of Time-To-Live (TTL) caching.
+  DateTimeColumn get cachedAt => dateTime().clientDefault(() => DateTime.now())();
+
+  @override
+  Set<Column<Object>>? get primaryKey => {requestKey};
+}
+
 mixin AutoIncrementingPrimaryKey on Table {
   IntColumn get id => integer().autoIncrement()();
 }

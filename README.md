@@ -145,6 +145,36 @@ Image(
 final bytes = await client.files.get(postRecord, 'my_image_field.jpg');
 ```
 
+### Custom API Route Caching
+
+The library now supports offline caching for custom API routes accessed via the `send` method. This is particularly useful for `GET` requests to custom endpoints that return data you want available offline.
+
+To use it, simply call the `send` method on your `$PocketBase` client and provide a `RequestPolicy`.
+
+**Note:** Caching is only applied to `GET` requests by default to prevent unintended side effects from caching state-changing operations (`POST`, `DELETE`, etc.).
+
+```dart
+// This request will be cached and available offline.
+try {
+  final customData = await client.send(
+    '/api/my-custom-route',
+    query: {'param': 'value'},
+    requestPolicy: RequestPolicy.cacheAndNetwork, // Use the desired policy
+  );
+} catch (e) {
+  // Handle errors, e.g., if networkOnly fails or cache is empty
+  print('Could not fetch custom data: $e');
+}
+
+// This POST request will bypass the cache and go directly to the network.
+await client.send(
+  '/api/submit-form',
+  method: 'POST',
+  body: {'name': 'test'},
+  // No requestPolicy needed, but even if provided, it would be ignored.
+);
+```
+
 ## TODO
 
 -   [X] Offline mutations and retry

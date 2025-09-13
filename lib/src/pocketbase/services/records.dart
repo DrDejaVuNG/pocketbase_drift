@@ -171,6 +171,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
 
   Stream<RecordModel?> watchRecord(
     String id, {
+    String? expand,
+    String? fields,
     RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
   }) {
     final controller = StreamController<RecordModel?>(
@@ -183,7 +185,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
                 .warning('Error subscribing to record $service/$id', e);
           }
         }
-        await getOneOrNull(id, requestPolicy: requestPolicy);
+        await getOneOrNull(id,
+            expand: expand, fields: fields, requestPolicy: requestPolicy);
       },
       onCancel: () async {
         if (requestPolicy.isNetwork) {
@@ -201,6 +204,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
         .$query(
           service,
           filter: "id = '$id'",
+          expand: expand,
+          fields: fields,
         )
         .map(itemFactoryFunc)
         .watchSingleOrNull();

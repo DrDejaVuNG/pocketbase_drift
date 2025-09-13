@@ -855,6 +855,253 @@ class BlobFilesCompanion extends UpdateCompanion<BlobFile> {
   }
 }
 
+class $CachedResponsesTable extends CachedResponses
+    with TableInfo<$CachedResponsesTable, CachedResponse> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedResponsesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _requestKeyMeta =
+      const VerificationMeta('requestKey');
+  @override
+  late final GeneratedColumn<String> requestKey = GeneratedColumn<String>(
+      'requestKey', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _responseDataMeta =
+      const VerificationMeta('responseData');
+  @override
+  late final GeneratedColumn<String> responseData = GeneratedColumn<String>(
+      'responseData', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _cachedAtMeta =
+      const VerificationMeta('cachedAt');
+  @override
+  late final GeneratedColumn<DateTime> cachedAt = GeneratedColumn<DateTime>(
+      'cachedAt', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      clientDefault: () => DateTime.now());
+  @override
+  List<GeneratedColumn> get $columns => [requestKey, responseData, cachedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'CachedResponses';
+  @override
+  VerificationContext validateIntegrity(Insertable<CachedResponse> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('requestKey')) {
+      context.handle(
+          _requestKeyMeta,
+          requestKey.isAcceptableOrUnknown(
+              data['requestKey']!, _requestKeyMeta));
+    } else if (isInserting) {
+      context.missing(_requestKeyMeta);
+    }
+    if (data.containsKey('responseData')) {
+      context.handle(
+          _responseDataMeta,
+          responseData.isAcceptableOrUnknown(
+              data['responseData']!, _responseDataMeta));
+    } else if (isInserting) {
+      context.missing(_responseDataMeta);
+    }
+    if (data.containsKey('cachedAt')) {
+      context.handle(_cachedAtMeta,
+          cachedAt.isAcceptableOrUnknown(data['cachedAt']!, _cachedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {requestKey};
+  @override
+  CachedResponse map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedResponse(
+      requestKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}requestKey'])!,
+      responseData: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}responseData'])!,
+      cachedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}cachedAt'])!,
+    );
+  }
+
+  @override
+  $CachedResponsesTable createAlias(String alias) {
+    return $CachedResponsesTable(attachedDatabase, alias);
+  }
+}
+
+class CachedResponse extends DataClass implements Insertable<CachedResponse> {
+  /// A unique hash of the request details (method, path, query, body)
+  /// that will serve as the primary key.
+  final String requestKey;
+
+  /// The raw JSON-encoded response data as a string.
+  final String responseData;
+
+  /// The timestamp of when this cache entry was created. Useful for
+  /// future implementations of Time-To-Live (TTL) caching.
+  final DateTime cachedAt;
+  const CachedResponse(
+      {required this.requestKey,
+      required this.responseData,
+      required this.cachedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['requestKey'] = Variable<String>(requestKey);
+    map['responseData'] = Variable<String>(responseData);
+    map['cachedAt'] = Variable<DateTime>(cachedAt);
+    return map;
+  }
+
+  CachedResponsesCompanion toCompanion(bool nullToAbsent) {
+    return CachedResponsesCompanion(
+      requestKey: Value(requestKey),
+      responseData: Value(responseData),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory CachedResponse.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedResponse(
+      requestKey: serializer.fromJson<String>(json['requestKey']),
+      responseData: serializer.fromJson<String>(json['responseData']),
+      cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'requestKey': serializer.toJson<String>(requestKey),
+      'responseData': serializer.toJson<String>(responseData),
+      'cachedAt': serializer.toJson<DateTime>(cachedAt),
+    };
+  }
+
+  CachedResponse copyWith(
+          {String? requestKey, String? responseData, DateTime? cachedAt}) =>
+      CachedResponse(
+        requestKey: requestKey ?? this.requestKey,
+        responseData: responseData ?? this.responseData,
+        cachedAt: cachedAt ?? this.cachedAt,
+      );
+  CachedResponse copyWithCompanion(CachedResponsesCompanion data) {
+    return CachedResponse(
+      requestKey:
+          data.requestKey.present ? data.requestKey.value : this.requestKey,
+      responseData: data.responseData.present
+          ? data.responseData.value
+          : this.responseData,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedResponse(')
+          ..write('requestKey: $requestKey, ')
+          ..write('responseData: $responseData, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(requestKey, responseData, cachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedResponse &&
+          other.requestKey == this.requestKey &&
+          other.responseData == this.responseData &&
+          other.cachedAt == this.cachedAt);
+}
+
+class CachedResponsesCompanion extends UpdateCompanion<CachedResponse> {
+  final Value<String> requestKey;
+  final Value<String> responseData;
+  final Value<DateTime> cachedAt;
+  final Value<int> rowid;
+  const CachedResponsesCompanion({
+    this.requestKey = const Value.absent(),
+    this.responseData = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedResponsesCompanion.insert({
+    required String requestKey,
+    required String responseData,
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : requestKey = Value(requestKey),
+        responseData = Value(responseData);
+  static Insertable<CachedResponse> custom({
+    Expression<String>? requestKey,
+    Expression<String>? responseData,
+    Expression<DateTime>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (requestKey != null) 'requestKey': requestKey,
+      if (responseData != null) 'responseData': responseData,
+      if (cachedAt != null) 'cachedAt': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedResponsesCompanion copyWith(
+      {Value<String>? requestKey,
+      Value<String>? responseData,
+      Value<DateTime>? cachedAt,
+      Value<int>? rowid}) {
+    return CachedResponsesCompanion(
+      requestKey: requestKey ?? this.requestKey,
+      responseData: responseData ?? this.responseData,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (requestKey.present) {
+      map['requestKey'] = Variable<String>(requestKey.value);
+    }
+    if (responseData.present) {
+      map['responseData'] = Variable<String>(responseData.value);
+    }
+    if (cachedAt.present) {
+      map['cachedAt'] = Variable<DateTime>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedResponsesCompanion(')
+          ..write('requestKey: $requestKey, ')
+          ..write('responseData: $responseData, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$DataBase extends GeneratedDatabase {
   _$DataBase(QueryExecutor e) : super(e);
   $DataBaseManager get managers => $DataBaseManager(this);
@@ -870,6 +1117,8 @@ abstract class _$DataBase extends GeneratedDatabase {
       'CREATE TRIGGER services_update AFTER UPDATE ON services BEGIN INSERT INTO text_entries (text_entries, "rowid", data) VALUES (\'delete\', old."rowid", old.data);INSERT INTO text_entries ("rowid", data) VALUES (new."rowid", new.data);END',
       'services_update');
   late final $BlobFilesTable blobFiles = $BlobFilesTable(this);
+  late final $CachedResponsesTable cachedResponses =
+      $CachedResponsesTable(this);
   Selectable<SearchResult> _search(String query) {
     return customSelect(
         'SELECT"record"."id" AS "nested_0.id", "record"."data" AS "nested_0.data", "record"."service" AS "nested_0.service", "record"."created" AS "nested_0.created", "record"."updated" AS "nested_0.updated" FROM text_entries INNER JOIN services AS record ON record."rowid" = text_entries."rowid" WHERE text_entries MATCH ?1 ORDER BY rank',
@@ -909,7 +1158,8 @@ abstract class _$DataBase extends GeneratedDatabase {
         servicesInsert,
         servicesDelete,
         servicesUpdate,
-        blobFiles
+        blobFiles,
+        cachedResponses
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -1591,6 +1841,150 @@ typedef $$BlobFilesTableProcessedTableManager = ProcessedTableManager<
     (BlobFile, $$BlobFilesTableReferences),
     BlobFile,
     PrefetchHooks Function({bool recordId})>;
+typedef $$CachedResponsesTableCreateCompanionBuilder = CachedResponsesCompanion
+    Function({
+  required String requestKey,
+  required String responseData,
+  Value<DateTime> cachedAt,
+  Value<int> rowid,
+});
+typedef $$CachedResponsesTableUpdateCompanionBuilder = CachedResponsesCompanion
+    Function({
+  Value<String> requestKey,
+  Value<String> responseData,
+  Value<DateTime> cachedAt,
+  Value<int> rowid,
+});
+
+class $$CachedResponsesTableFilterComposer
+    extends Composer<_$DataBase, $CachedResponsesTable> {
+  $$CachedResponsesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get requestKey => $composableBuilder(
+      column: $table.requestKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get responseData => $composableBuilder(
+      column: $table.responseData, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get cachedAt => $composableBuilder(
+      column: $table.cachedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$CachedResponsesTableOrderingComposer
+    extends Composer<_$DataBase, $CachedResponsesTable> {
+  $$CachedResponsesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get requestKey => $composableBuilder(
+      column: $table.requestKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get responseData => $composableBuilder(
+      column: $table.responseData,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
+      column: $table.cachedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CachedResponsesTableAnnotationComposer
+    extends Composer<_$DataBase, $CachedResponsesTable> {
+  $$CachedResponsesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get requestKey => $composableBuilder(
+      column: $table.requestKey, builder: (column) => column);
+
+  GeneratedColumn<String> get responseData => $composableBuilder(
+      column: $table.responseData, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$CachedResponsesTableTableManager extends RootTableManager<
+    _$DataBase,
+    $CachedResponsesTable,
+    CachedResponse,
+    $$CachedResponsesTableFilterComposer,
+    $$CachedResponsesTableOrderingComposer,
+    $$CachedResponsesTableAnnotationComposer,
+    $$CachedResponsesTableCreateCompanionBuilder,
+    $$CachedResponsesTableUpdateCompanionBuilder,
+    (
+      CachedResponse,
+      BaseReferences<_$DataBase, $CachedResponsesTable, CachedResponse>
+    ),
+    CachedResponse,
+    PrefetchHooks Function()> {
+  $$CachedResponsesTableTableManager(_$DataBase db, $CachedResponsesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedResponsesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedResponsesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedResponsesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> requestKey = const Value.absent(),
+            Value<String> responseData = const Value.absent(),
+            Value<DateTime> cachedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CachedResponsesCompanion(
+            requestKey: requestKey,
+            responseData: responseData,
+            cachedAt: cachedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String requestKey,
+            required String responseData,
+            Value<DateTime> cachedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CachedResponsesCompanion.insert(
+            requestKey: requestKey,
+            responseData: responseData,
+            cachedAt: cachedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CachedResponsesTableProcessedTableManager = ProcessedTableManager<
+    _$DataBase,
+    $CachedResponsesTable,
+    CachedResponse,
+    $$CachedResponsesTableFilterComposer,
+    $$CachedResponsesTableOrderingComposer,
+    $$CachedResponsesTableAnnotationComposer,
+    $$CachedResponsesTableCreateCompanionBuilder,
+    $$CachedResponsesTableUpdateCompanionBuilder,
+    (
+      CachedResponse,
+      BaseReferences<_$DataBase, $CachedResponsesTable, CachedResponse>
+    ),
+    CachedResponse,
+    PrefetchHooks Function()>;
 
 class $DataBaseManager {
   final _$DataBase _db;
@@ -1601,6 +1995,8 @@ class $DataBaseManager {
       $TextEntriesTableManager(_db, _db.textEntries);
   $$BlobFilesTableTableManager get blobFiles =>
       $$BlobFilesTableTableManager(_db, _db.blobFiles);
+  $$CachedResponsesTableTableManager get cachedResponses =>
+      $$CachedResponsesTableTableManager(_db, _db.cachedResponses);
 }
 
 class SearchResult {

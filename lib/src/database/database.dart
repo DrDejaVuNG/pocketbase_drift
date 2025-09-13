@@ -10,7 +10,7 @@ import 'tables.dart';
 part 'database.g.dart';
 
 @DriftDatabase(
-  tables: [Services, BlobFiles],
+  tables: [Services, BlobFiles, CachedResponses],
   include: {'sql/search.drift'},
 )
 class DataBase extends _$DataBase {
@@ -21,7 +21,7 @@ class DataBase extends _$DataBase {
   late final Logger logger;
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -32,6 +32,9 @@ class DataBase extends _$DataBase {
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
           await m.createTable(blobFiles);
+        }
+        if (from < 3) {
+          await m.createTable(cachedResponses);
         }
       },
     );
@@ -754,6 +757,26 @@ class DataBase extends _$DataBase {
         b.insert(services, row, onConflict: DoUpdate((old) => row));
       }
     });
+  }
+
+  /// Caches a raw JSON response string against a unique key.
+  Future<void> cacheResponse(String key, String jsonData) async {
+    final companion = CachedResponsesCompanion.insert(
+      requestKey: key,
+      responseData: jsonData,
+      cachedAt: Value(DateTime.now()),
+    );
+    // Use insertOrReplace to handle updates to an existing cached item.
+    await into(cachedResponses)
+        .insert(companion, mode: InsertMode.insertOrReplace);
+  }
+
+  /// Retrieves a cached JSON response string by its key.
+  Future<String?> getCachedResponse(String key) async {
+    final query = select(cachedResponses)
+      ..where((tbl) => tbl.requestKey.equals(key));
+    final result = await query.getSingleOrNull();
+    return result?.responseData;
   }
 }
 
