@@ -53,8 +53,8 @@ void main() {
 
       client = $PocketBase.database(
         url,
-        authStore:
-            $AuthStore.prefs((await SharedPreferences.getInstance()), 'pb_auth'),
+        authStore: $AuthStore.prefs(
+            (await SharedPreferences.getInstance()), 'pb_auth'),
         inMemory: true,
         connection: DatabaseConnection(NativeDatabase.memory()),
       );

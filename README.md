@@ -1,3 +1,5 @@
+# Pocketbase Drift
+
 A powerful, offline-first Flutter client for [PocketBase](https://pocketbase.io), backed by the reactive persistence of [Drift](https://drift.simonbinder.eu) (the Flutter & Dart flavor of `moor`).
 
 This library extends the official PocketBase Dart SDK to provide a seamless offline-first experience. It automatically caches data from your PocketBase instance into a local SQLite database, allowing your app to remain fully functional even without a network connection. Changes made while offline are queued and automatically retried when connectivity is restored.
@@ -43,7 +45,22 @@ Replace a standard `PocketBase` client with a `$PocketBase.database` client. It'
 + final client = $PocketBase.database('http://127.0.0.1:8090');
 ```
 
-### 3. Web Setup
+### 3. Cache the Database Schema (Enable Offline Records)
+
+To enable the offline caching functionality for records, you must provide the database schema to the client. This allows the local database to understand your collection structures for validation and relation expansion without needing to contact the server.
+
+First, download your `pb_schema.json` file from the PocketBase Admin UI (`Settings > Export collections`). Then, add it to your project as an asset.
+
+```dart
+// 1. Load the schema from your assets
+final schema = await rootBundle.loadString('assets/pb_schema.json');
+
+// 2. Initialize the client and cache the schema
+final client = $PocketBase.database('http://127.0.0.1:8090')
+  ..cacheSchema(schema);
+```
+
+### 4. Web Setup
 
 For web, you need to follow the instructions for [Drift on the Web](https://drift.simonbinder.eu/web/#drift-wasm) to copy the `sqlite3.wasm` binary and `drift_worker.js` file into your `web/` directory.
 
@@ -158,12 +175,10 @@ To use it, simply call the `send` method on your `$PocketBase` client and provid
 try {
   final customData = await client.send(
     '/api/my-custom-route',
-    query: {'param': 'value'},
     requestPolicy: RequestPolicy.cacheAndNetwork, // Use the desired policy
   );
 } catch (e) {
   // Handle errors, e.g., if networkOnly fails or cache is empty
-  print('Could not fetch custom data: $e');
 }
 
 // This POST request will bypass the cache and go directly to the network.
