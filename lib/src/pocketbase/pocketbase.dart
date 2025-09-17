@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:collection' show SplayTreeMap;
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:pocketbase_drift/pocketbase_drift.dart';
 
-class $PocketBase extends PocketBase {
+class $PocketBase extends PocketBase with WidgetsBindingObserver {
   $PocketBase(
     super.baseUrl, {
     required this.db,
@@ -15,7 +17,9 @@ class $PocketBase extends PocketBase {
     super.authStore,
     super.httpClientFactory,
   }) : connectivity = ConnectivityService() {
+    WidgetsBinding.instance.addObserver(this);
     _listenForConnectivityChanges();
+    _proactiveSyncOnStartup();
   }
 
   factory $PocketBase.database(
@@ -64,6 +68,43 @@ class $PocketBase extends PocketBase {
         logger
             .info('Connectivity restored. Retrying all pending local changes.');
         _retrySyncForAllServices();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      logger.info('App resumed. Resetting connectivity subscription.');
+      connectivity.resetSubscription();
+      // After resetting, the subscription will get the current state.
+      // We can also trigger a proactive sync if online.
+      if (connectivity.isConnected) {
+        logger.info(
+            'App resumed and online. Checking for pending changes to sync.');
+        _retrySyncForAllServices();
+      }
+    }
+  }
+
+  void _proactiveSyncOnStartup() {
+    // Add a microtask delay to allow the service to fully initialize
+    // and for the initial connectivity check to potentially complete.
+    Timer.run(() async {
+      logger.info('Performing proactive connectivity check on startup.');
+      // Explicitly check connectivity to ensure the latest state.
+      await connectivity.checkConnectivity();
+
+      // If online, try to sync. This handles the case where the app starts
+      // online with pending items and no connectivity change event is fired.
+      if (connectivity.isConnected) {
+        logger
+            .info('App started online. Checking for pending changes to sync.');
+        _retrySyncForAllServices();
+      } else {
+        logger.info(
+            'App started offline. Pending changes will sync when connectivity is restored.');
       }
     });
   }
@@ -248,6 +289,7 @@ class $PocketBase extends PocketBase {
   // Clean up resources
   @override
   void close() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
     connectivity.dispose();
     super.close();

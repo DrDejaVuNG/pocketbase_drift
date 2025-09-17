@@ -1,14 +1,23 @@
 import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logging/logging.dart';
 
 /// A service that monitors the device's network connectivity status.
 class ConnectivityService {
-  ConnectivityService() {
+  ConnectivityService._() {
     _logger = Logger('ConnectivityService');
     _subscription = Connectivity().onConnectivityChanged.listen(_updateStatus);
     // Get the initial status.
     checkConnectivity();
+  }
+
+  // Singleton instance
+  static final ConnectivityService _instance = ConnectivityService._();
+
+  // Factory constructor to return the singleton instance
+  factory ConnectivityService() {
+    return _instance;
   }
 
   final _statusController = StreamController<bool>.broadcast();
@@ -16,8 +25,14 @@ class ConnectivityService {
   late final Logger _logger;
 
   /// A stream that emits `true` if the device is connected to a network,
-  /// and `false` otherwise.
-  Stream<bool> get statusStream => _statusController.stream;
+  /// and `false` otherwise. New listeners will immediately receive the current status.
+  Stream<bool> get statusStream {
+    // Emit the current status to new listeners immediately.
+    // Using Timer.run to ensure it's added asynchronously in the next microtask,
+    // allowing the listener to be fully set up.
+    Timer.run(() => _statusController.add(isConnected));
+    return _statusController.stream;
+  }
 
   /// The current network connectivity status.
   bool isConnected = true;
@@ -36,6 +51,17 @@ class ConnectivityService {
       _statusController.add(isConnected);
       _logger.info('Status changed: ${isConnected ? "Online" : "Offline"}');
     }
+  }
+
+  /// Resets the connectivity stream subscription.
+  /// Useful when the app resumes from background or after a hot restart
+  /// to ensure the stream is not stale.
+  void resetSubscription() {
+    _logger.info('Resetting connectivity stream subscription.');
+    _subscription.cancel();
+    _subscription = Connectivity().onConnectivityChanged.listen(_updateStatus);
+    // Re-check immediately after resetting.
+    checkConnectivity();
   }
 
   void dispose() {

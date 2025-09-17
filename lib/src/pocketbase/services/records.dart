@@ -217,6 +217,7 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
     String? expand,
     String? filter,
     String? sort,
+    int? limit,
     String? fields,
     RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
   }) {
@@ -258,6 +259,7 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
           filter: filter,
           expand: expand,
           sort: sort,
+          limit: limit,
           fields: fields,
         )
         .map(itemFactoryFunc)
