@@ -1,6 +1,8 @@
 name: pocketbase_drift
 description: A pocketbase client backed by drift database.
-version: 0.2.0
+version: 0.1.0
+repository: https://github.com/DrDejaVuNG/pocketbase_drift
+issue_tracker: https://github.com/DrDejaVuNG/pocketbase_drift/issues
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
