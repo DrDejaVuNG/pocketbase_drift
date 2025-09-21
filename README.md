@@ -1,4 +1,4 @@
-# Pocketbase Drift
+# PocketBase Drift
 
 A powerful, offline-first Flutter client for [PocketBase](https://pocketbase.io), backed by the reactive persistence of [Drift](https://drift.simonbinder.eu) (the Flutter & Dart flavor of `moor`).
 
@@ -17,9 +17,9 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
     *   **Pagination**: `limit` and `offset` are fully supported for local data.
 *   **Relation Expansion**: Support for expanding single and multi-level relations (e.g., `post.author`) directly from the local cache.
 *   **Full-Text Search**: Integrated Full-Text Search (FTS5) for performing fast, local searches across all your cached record data.
-*   **Authentication Persistence**: User and admin authentication state is persisted locally using `shared_preferences`, keeping users logged in across app sessions.
+*   **Authentication Persistence**: User authentication state is persisted locally using `shared_preferences`, keeping users logged in across app sessions.
 *   **Cross-Platform Support**: Works across all Flutter-supported platforms, including mobile (iOS, Android), web, and desktop (macOS, Windows, Linux).
-*   **Basic File & Image Caching**: Includes a `PocketBaseImageProvider` that caches images in the local database for offline display.
+*   **File & Image Caching**: Includes a `PocketBaseImageProvider` that caches images in the local database for offline display.
 -   **Robust & Performant**: Includes optimizations for batching queries and file streaming on all platforms to handle large files efficiently.
 
 ## Getting Started
@@ -30,7 +30,7 @@ Add the following packages to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pocketbase_drift: ^0.1.0 # Use the latest version
+  pocketbase_drift: ^0.1.2 # Use the latest version
 ```
 
 ### 2. Initialize the Client
@@ -91,7 +91,7 @@ The `RequestPolicy` enum is central to this library and controls how requests ar
 
 -   `RequestPolicy.networkOnly`:
     -   Only ever reads data from the remote server.
-    -   Never uses the local cache for reading (but still updates it on success).
+    -   Never uses the local cache for reading.
     -   Will throw an exception if the network is unavailable.
 
 ### Offline Support
@@ -123,10 +123,13 @@ final post = await client.collection('posts').getOne('RECORD_ID');
 
 ```dart
 // Create a new record (works online and offline)
-final newRecord = await client.collection('posts').create(body: {
-  'title': 'My Offline Post',
-  'content': 'This was created without a connection.',
-});
+final newRecord = await client.collection('posts').create(
+  body: {
+    'title': 'My Offline Post',
+    'content': 'This was created without a connection.',
+  },
+  requestPolicy: RequestPolicy.cacheAndNetwork,
+);
 
 // Update a record
 await client.collection('posts').update(newRecord.id, body: {
@@ -164,7 +167,7 @@ final bytes = await client.files.get(postRecord, 'my_image_field.jpg');
 
 ### Custom API Route Caching
 
-The library now supports offline caching for custom API routes accessed via the `send` method. This is particularly useful for `GET` requests to custom endpoints that return data you want available offline.
+The library supports offline caching for custom API routes accessed via the `send` method. This is particularly useful for `GET` requests to custom endpoints that return data you want available offline.
 
 To use it, simply call the `send` method on your `$PocketBase` client and provide a `RequestPolicy`.
 
