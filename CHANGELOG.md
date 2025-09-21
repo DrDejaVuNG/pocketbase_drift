@@ -1,3 +1,7 @@
+## 0.1.1
+
+* Resolve pub.dev score issues e.g outdated plugin dependencies.
+
 ## 0.1.0
 
 *   **Initial release.**

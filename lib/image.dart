@@ -59,7 +59,7 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
     return decode(await ui.ImmutableBuffer.fromUint8List(bytes));
   }
 
-  static Color getFilterColor(color) {
+  static Color getFilterColor([Color? color]) {
     if (kIsWeb && color == Colors.transparent) {
       return const Color(0x01ffffff);
     } else {

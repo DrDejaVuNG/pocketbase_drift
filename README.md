@@ -202,3 +202,7 @@ await client.send(
 -   [X] Add support for indirect expand (e.g., `post.author.avatar`)
 -   [X] Add support for more complex query operators (e.g., ~ for LIKE/Contains)
 -   [X] More comprehensive test suite for edge cases
+
+## Credits
+ 
+- [Rody Davis](https://github.com/rodydavis) (Original Creator)
