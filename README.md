@@ -156,13 +156,19 @@ The library automatically caches files for offline use.
 Image(
   image: PocketBaseImageProvider(
     client: client,
-    record: postRecord, // The RecordModel containing the file
+    recordId: postRecord.id, 
+    recordCollectionName: postRecord.collectionName,
     filename: postRecord.get('my_image_field'), // The filename
   ),
 );
 
 // Or get the file bytes directly
-final bytes = await client.files.get(postRecord, 'my_image_field.jpg');
+final bytes = await client.files.getFileData(
+  recordId: postRecord.id, 
+  recordCollectionName: postRecord.collectionName, 
+  fileName: postRecord.get('my_image_field'),
+  requestPolicy: RequestPolicy.cacheAndNetwork,
+);
 ```
 
 ### Custom API Route Caching

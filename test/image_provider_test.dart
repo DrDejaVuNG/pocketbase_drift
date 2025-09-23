@@ -65,6 +65,7 @@ void main() {
       dummyRecord = RecordModel({
         'id': 'rec123',
         'collectionId': 'col456',
+        'collectionName': 'test_collection',
         'data': {'file': dummyFilename}
       });
     });
@@ -100,7 +101,8 @@ void main() {
             body: Image(
               image: PocketBaseImageProvider(
                 client: client,
-                record: dummyRecord,
+                recordId: dummyRecord.id,
+                recordCollectionName: dummyRecord.collectionName,
                 filename: dummyFilename,
               ),
             ),
@@ -152,7 +154,8 @@ void main() {
             body: Image(
               image: PocketBaseImageProvider(
                 client: client,
-                record: dummyRecord,
+                recordId: dummyRecord.id,
+                recordCollectionName: dummyRecord.collectionName,
                 filename: dummyFilename,
               ),
             ),

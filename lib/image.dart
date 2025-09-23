@@ -13,7 +13,8 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   /// Creates an [ImageProvider] for a PocketBase file.
   PocketBaseImageProvider({
     required this.client,
-    required this.record,
+    required this.recordId,
+    required this.recordCollectionName,
     required this.filename,
     this.pixelWidth,
     this.pixelHeight,
@@ -21,11 +22,13 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
     this.color,
     this.scale,
     this.expireAfter,
-    this.token = true,
+    this.token,
+    this.autoGenerateToken = false,
   });
 
   final $PocketBase client;
-  final RecordModel record;
+  final String recordId;
+  final String recordCollectionName;
   final String filename;
   final int? pixelWidth;
   final int? pixelHeight;
@@ -33,7 +36,8 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   final Color? color;
   final double? scale;
   final Duration? expireAfter;
-  final bool token;
+  final String? token;
+  final bool autoGenerateToken;
 
   @override
   ImageStreamCompleter loadImage(
@@ -82,13 +86,15 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
       PocketBaseImageProvider(
         client: client,
         filename: filename,
-        record: record,
+        recordId: recordId,
+        recordCollectionName: recordCollectionName,
         scale: scale,
         color: color,
         pixelWidth: (logicWidth * scale).round(),
         pixelHeight: (logicHeight * scale).round(),
         expireAfter: expireAfter,
         token: token,
+        autoGenerateToken: autoGenerateToken,
         size: size,
       ),
     );
@@ -101,7 +107,14 @@ class PocketBaseImageProvider extends ImageProvider<PocketBaseImageProvider> {
   Future<Uint8List> download() async {
     // The image provider's entire cache/network logic is now handled by the FileService.
     // We use a network-first policy by default for images to ensure they are up-to-date.
-    return client.files.get(record, filename,
-        requestPolicy: RequestPolicy.cacheAndNetwork, expireAfter: expireAfter);
+    return client.files.getFileData(
+      recordId: recordId,
+      recordCollectionName: recordCollectionName,
+      filename: filename,
+      token: token,
+      autoGenerateToken: autoGenerateToken,
+      requestPolicy: RequestPolicy.cacheAndNetwork,
+      expireAfter: expireAfter,
+    );
   }
 }

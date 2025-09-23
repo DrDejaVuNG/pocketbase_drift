@@ -14,12 +14,20 @@ class $FileService extends FileService {
   /// Gets file data, respecting the specified [RequestPolicy].
   ///
   /// This method centralizes the cache-or-network logic for files.
-  Future<Uint8List> get(
-    RecordModel record,
-    String filename, {
+  Future<Uint8List> getFileData({
+    required String recordId,
+    required String recordCollectionName,
+    required String filename,
+    String? thumb,
+    String? token,
+    bool autoGenerateToken = false,
     RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Duration? expireAfter,
   }) async {
+    final record = RecordModel({
+      'id': recordId,
+      'collectionName': recordCollectionName,
+    });
     if (requestPolicy.isCache) {
       final cached =
           await client.db.getFile(record.id, filename).getSingleOrNull();
@@ -38,7 +46,12 @@ class $FileService extends FileService {
     }
 
     if (requestPolicy.isNetwork) {
-      final bytes = await getFileBytes(record, filename);
+      String? fileToken = token;
+      if (autoGenerateToken && fileToken == null) {
+        fileToken = await client.files.getToken();
+      }
+      final bytes =
+          await _downloadFile(record, filename, thumb: thumb, token: fileToken);
       // Save to cache after a successful network download if policy allows
       if (requestPolicy.isCache) {
         await client.db.setFile(record.id, filename, bytes,
@@ -55,12 +68,13 @@ class $FileService extends FileService {
   /// Downloads a file using a stream to prevent memory issues with large files.
   ///
   /// The file is streamed to a temporary file on disk and then read into bytes.
-  Future<Uint8List> getFileBytes(
+  Future<Uint8List> _downloadFile(
     RecordModel record,
     String filename, {
     String? thumb,
+    String? token,
   }) async {
-    final url = getUrl(record, filename, thumb: thumb);
+    final url = getURL(record, filename, thumb: thumb, token: token);
 
     final httpClient = client.httpClientFactory();
     final request = http.Request('GET', url);

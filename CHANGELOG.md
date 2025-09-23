@@ -1,3 +1,12 @@
+## 0.2.0
+
+Refactor file download methods to use consistent getFileData & Implement auto-generation of file token
+
+- Change token parameter from bool to String?
+- Add autoGenerateToken parameter to automatically generate tokens when needed
+- Refactor file download methods to use consistent getFileData API across platforms
+- Improve file service architecture to better handle token-based file downloads
+
 ## 0.1.2
 
 * Update Documentation.

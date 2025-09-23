@@ -11,13 +11,16 @@ class $FileService extends FileService {
   @override
   final $PocketBase client;
 
-  /// Gets file data using record id and collection name
-  Future<Uint8List> getFile({
+  /// Gets file data, respecting the specified [RequestPolicy].
+  ///
+  /// This method centralizes the cache-or-network logic for files.
+  Future<Uint8List> getFileData({
     required String recordId,
     required String recordCollectionName,
     required String filename,
     String? thumb,
     String? token,
+    bool autoGenerateToken = false,
     RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Duration? expireAfter,
   }) async {
@@ -25,24 +28,6 @@ class $FileService extends FileService {
       'id': recordId,
       'collectionName': recordCollectionName,
     });
-    return get(record, filename,
-        thumb: thumb,
-        token: token,
-        requestPolicy: requestPolicy,
-        expireAfter: expireAfter);
-  }
-
-  /// Gets file data, respecting the specified [RequestPolicy].
-  ///
-  /// This method centralizes the cache-or-network logic for files.
-  Future<Uint8List> get(
-    RecordModel record,
-    String filename, {
-    String? thumb,
-    String? token,
-    RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
-    Duration? expireAfter,
-  }) async {
     if (requestPolicy.isCache) {
       final cached =
           await client.db.getFile(record.id, filename).getSingleOrNull();
@@ -61,8 +46,12 @@ class $FileService extends FileService {
     }
 
     if (requestPolicy.isNetwork) {
+      String? fileToken = token;
+      if (autoGenerateToken && fileToken == null) {
+        fileToken = await client.files.getToken();
+      }
       final bytes =
-          await getFileBytes(record, filename, thumb: thumb, token: token);
+          await _downloadFile(record, filename, thumb: thumb, token: fileToken);
       // Save to cache after a successful network download if policy allows
       if (requestPolicy.isCache) {
         await client.db.setFile(record.id, filename, bytes,
@@ -78,7 +67,7 @@ class $FileService extends FileService {
 
   /// Downloads a file using a streaming approach to improve performance for
   /// larger files compared to loading the entire file into memory at once.
-  Future<Uint8List> getFileBytes(
+  Future<Uint8List> _downloadFile(
     RecordModel record,
     String filename, {
     String? thumb,

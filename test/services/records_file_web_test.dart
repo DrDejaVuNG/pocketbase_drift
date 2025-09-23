@@ -89,7 +89,7 @@ void main() {
       // 1. Create a mock HTTP client that will successfully return our test image.
       final mockHttpClient = MockClient((request) async {
         final expectedPath =
-            '/api/files/${dummyRecord.collectionId}/${dummyRecord.id}/$dummyFilename';
+            '/api/files/${dummyRecord.collectionName}/${dummyRecord.id}/$dummyFilename';
         if (request.method == 'GET' && request.url.path == expectedPath) {
           return http.Response.bytes(kTestImageBytes, 200);
         }
@@ -105,8 +105,10 @@ void main() {
 
       // Act:
       // Request the file. This should trigger a network fetch as the cache is empty.
-      final downloadedBytes =
-          await client.files.get(dummyRecord, dummyFilename);
+      final downloadedBytes = await client.files.getFileData(
+          recordId: dummyRecord.id,
+          recordCollectionName: dummyRecord.collectionName,
+          filename: dummyFilename);
 
       // Assert:
       // 1. The downloaded data should be correct.
@@ -144,11 +146,10 @@ void main() {
       // Request the file. Because it exists in the cache, it should be returned
       // directly without a network request. We use cacheAndNetwork policy to simulate
       // a real-world scenario where the app would try but fail to connect.
-      final cachedBytes = await client.files.get(
-        dummyRecord,
-        dummyFilename,
-        requestPolicy: RequestPolicy.cacheAndNetwork,
-      );
+      final cachedBytes = await client.files.getFileData(
+          recordId: dummyRecord.id,
+          recordCollectionName: dummyRecord.collectionName,
+          filename: dummyFilename);
 
       // Assert:
       // 1. The data returned should be correct (from the cache).
