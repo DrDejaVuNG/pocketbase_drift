@@ -1,3 +1,12 @@
+## 0.2.1
+
+Exclude certain API paths from caching in `send` method
+
+- Add a list of non-cacheable path segments to exclude specific API endpoints from being cached.
+- Modify the send method to bypass cache if the request path contains any of these segments.
+
+This prevents caching sensitive or system data like backups, settings, and logs.
+
 ## 0.2.0
 
 Refactor file download methods to use consistent getFileData & Implement auto-generation of file token

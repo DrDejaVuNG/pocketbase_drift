@@ -166,6 +166,19 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
     return '$method::$path::${jsonEncode(sortedQuery)}::${jsonEncode(sortedBody)}';
   }
 
+  /// A list of path segments that should never be cached by [send].
+  static const _nonCacheablePathSegments = [
+    'api/backups',
+    'api/batch',
+    'api/collections',
+    'api/crons',
+    'api/health',
+    'api/files',
+    'api/logs',
+    'api/realtime',
+    'api/settings',
+  ];
+
   /// Sends a single HTTP request with offline caching capabilities.
   ///
   /// This method extends the base `send` method to provide offline caching
@@ -189,8 +202,10 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
       body: body,
     );
 
-    // Bypass cache if the key is empty (not a GET request) or files are present.
-    if (cacheKey.isEmpty || files.isNotEmpty) {
+    // Bypass cache if the key is empty (not a GET request), files are present,
+    // or the path contains a non-cacheable segment.
+    final shouldBypassCache = _nonCacheablePathSegments.any(path.contains);
+    if (cacheKey.isEmpty || files.isNotEmpty || shouldBypassCache) {
       return super.send<T>(
         path,
         method: method,
