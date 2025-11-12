@@ -72,34 +72,81 @@ For web, you need to follow the instructions for [Drift on the Web](https://drif
 
 ### RequestPolicy
 
-The `RequestPolicy` enum is central to this library and controls how requests are handled.
+The `RequestPolicy` enum controls how data is fetched and synchronized between local cache and remote server. Choose the policy that best fits your consistency and availability requirements.
 
--   `RequestPolicy.cacheAndNetwork` (Default): Provides a seamless online/offline experience.
-    - For one-time fetches (e.g., getFullList):
-      - Tries to fetch fresh data from the remote PocketBase server.
-      - If successful, it updates the local cache with the new data and returns it.
-      - If the network fails (or the device is offline), it seamlessly falls back to returning data from the local cache without throwing an error.
-    - For reactive streams (e.g., watchRecords):
-      - The stream immediately emits the data currently in the local cache, making the UI feel instant.
-      - A network request is then triggered in the background.
-      - If the network data is different, the local cache is updated, and the stream automatically emits the new, fresh data.
+#### For Read Operations (GET):
 
--   `RequestPolicy.cacheOnly`:
-    -   Only ever reads data from the local cache.
-    -   Never makes a network request.
-    -   **Important**: Records created or updated with this policy are marked with a `noSync` flag and will **not** be automatically synced to the server when connectivity is restored. This is useful for data that should only ever exist on the local device.
+-   **`RequestPolicy.networkFirst`**: Prioritizes fresh data from the server.
+    - Tries to fetch from the remote server first
+    - On success, updates the local cache and returns the fresh data
+    - On failure (network error or offline), falls back to cached data
+    - **Use case**: When you need the freshest data possible, but can accept stale data if network fails
 
--   `RequestPolicy.networkOnly`:
-    -   Only ever reads data from the remote server.
-    -   Never uses the local cache for writing.
-    -   Will throw an exception if the network is unavailable.
+-   **`RequestPolicy.cacheFirst`**: Prioritizes instant UI response.
+    - Returns cached data immediately
+    - Fetches from network in the background to update cache for next time
+    - **Use case**: When UI responsiveness is critical and slightly stale data is acceptable
 
-### Offline Support
+-   **`RequestPolicy.cacheAndNetwork`** (Default): Balances freshness and availability.
+    - For one-time fetches: Same as `networkFirst` (tries network, falls back to cache)
+    - For reactive streams (`watchRecords`): Emits cache immediately, then updates with network data
+    - **Use case**: General-purpose offline-first behavior
 
-When you use `create`, `update`, or `delete` methods, the library automatically handles the network state:
+-   **`RequestPolicy.cacheOnly`**: Only reads from local cache, never contacts server.
+    - **Use case**: When you only want to work with locally available data
 
--   **Online**: The operation is sent to the server. If it succeeds, the local cache is updated.
--   **Offline**: The operation is immediately applied to the local cache and marked as "pending sync." The UI will react instantly to the local change. When connectivity is restored, the library will automatically attempt to send the pending change to the server.
+-   **`RequestPolicy.networkOnly`**: Only reads from server, never uses cache.
+    - Throws an exception if network is unavailable
+    - **Use case**: When you absolutely need fresh data and can't accept stale data
+
+#### For Write Operations (CREATE/UPDATE/DELETE):
+
+-   **`RequestPolicy.networkFirst`**: Server is the source of truth (strict consistency).
+    - Writes to server first
+    - On success, updates local cache
+    - On failure, throws an error (NO cache fallback)
+    - **Use case**: When data integrity is critical and you can't risk conflicts (e.g., financial transactions, inventory management)
+
+-   **`RequestPolicy.cacheFirst`**: Local cache is the source of truth (optimistic updates).
+    - Writes to cache first, returns success immediately
+    - Attempts server sync in the background
+    - If background sync fails, the record is marked as "pending sync" and will retry later
+    - **Use case**: When instant UI feedback is critical (e.g., note-taking apps, drafts)
+
+-   **`RequestPolicy.cacheAndNetwork`** (Default): Resilient offline-first.
+    - Tries to write to server first
+    - On success, updates local cache
+    - On failure, writes to cache and marks as "pending sync" for automatic retry
+    - **Use case**: General-purpose offline-first apps that need to work offline
+
+-   **`RequestPolicy.cacheOnly`**: Only writes to cache, marks as `noSync`.
+    - Records will NEVER sync to server
+    - **Use case**: Local-only data (user preferences, temp data, offline-only features)
+
+-   **`RequestPolicy.networkOnly`**: Only writes to server, throws on failure.
+    - Never touches the cache
+    - **Use case**: When you need immediate server confirmation
+
+### Choosing the Right Policy
+
+| Scenario | Read Policy | Write Policy |
+|----------|-------------|--------------|
+| Real-time collaborative app | `networkFirst` | `networkFirst` |
+| Offline-first mobile app | `cacheAndNetwork` | `cacheAndNetwork` |
+| Instant feedback UI (notes, drafts) | `cacheFirst` | `cacheFirst` |
+| Financial transactions | `networkOnly` | `networkFirst` or `networkOnly` |
+| Analytics/telemetry | N/A | `cacheFirst` |
+| Local-only settings | `cacheOnly` | `cacheOnly` |
+
+### Offline Support & Sync
+
+When using `cacheAndNetwork` or `cacheFirst` policies for write operations, the library automatically handles network failures:
+
+-   **When Online**: Operations are sent to the server. On success, local cache is updated.
+-   **When Offline** (or network failure):
+    - `cacheAndNetwork`: Operation is applied to local cache and marked as "pending sync"
+    - `cacheFirst`: Operation succeeds locally, background sync is attempted
+    - In both cases, the UI responds instantly and the change will automatically sync when connectivity is restored
 
 ## Usage Examples
 

@@ -1,3 +1,35 @@
+## 0.3.0
+
+**BREAKING CHANGES**: Added new `RequestPolicy` options for more explicit control over caching and network behavior.
+
+### New Features
+
+- **New RequestPolicy options**: Added `RequestPolicy.cacheFirst` and `RequestPolicy.networkFirst` for more explicit control over data fetching and synchronization behavior
+  - `cacheFirst`: Returns cache immediately, fetches network in background to update cache
+  - `networkFirst`: Tries network first, falls back to cache on failure (replaces old `cacheAndNetwork` behavior for reads)
+  - `cacheAndNetwork`: Now has distinct behavior - for reads it behaves like `networkFirst`, but for writes it provides resilient offline-first synchronization with automatic retry
+
+### Improvements
+
+- **Refactored write operations** (create/update/delete): Split monolithic methods into smaller, policy-specific implementations for better maintainability
+- **Enhanced documentation**: Comprehensive guide on choosing the right `RequestPolicy` for different scenarios
+- **Better error messages**: More descriptive error messages that indicate which policy was used when operations fail
+
+### Write Operation Behavior Changes
+
+- **`networkFirst` (new strict mode)**: Writes to server first, updates cache on success, throws error on failure (NO cache fallback)
+- **`cacheFirst` (new optimistic mode)**: Writes to cache first, attempts server sync in background
+- **`cacheAndNetwork` (enhanced)**: Tries server first, falls back to cache with pending sync on failure (maintains backward compatibility for offline-first apps)
+
+### Migration Guide
+
+**Existing code continues to work** - the default `RequestPolicy.cacheAndNetwork` maintains backward compatibility for most use cases.
+
+However, if you were relying on specific behavior:
+- If you want strict server-first writes with no offline fallback, use `RequestPolicy.networkFirst`
+- If you want instant UI feedback with background sync, use `RequestPolicy.cacheFirst`
+- If you want resilient offline-first behavior (old default), continue using `RequestPolicy.cacheAndNetwork`
+
 ## 0.2.1
 
 Exclude certain API paths from caching in `send` method
