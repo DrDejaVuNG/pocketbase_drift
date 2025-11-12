@@ -646,6 +646,7 @@ extension RequestPolicyUtils on RequestPolicy {
   }) async {
     client.logger.finer('Fetching "$label" with policy "$name"');
     T? result;
+    Object? error;
 
     if (isNetwork) {
       // Proactive connectivity check.
@@ -663,6 +664,7 @@ extension RequestPolicyUtils on RequestPolicy {
           client.logger.finer('Fetching remote for "$label"...');
           result = await remote();
         } catch (e) {
+          error = e;
           client.logger.warning('Remote fetch for "$label" failed.', e);
           if (this == RequestPolicy.networkOnly) {
             throw Exception('Failed to get $e');
@@ -672,18 +674,23 @@ extension RequestPolicyUtils on RequestPolicy {
     }
 
     if (isCache) {
-      if (result != null) {
-        client.logger.finer('Got remote data for "$label", updating cache...');
-        await setLocal(result);
-      } else {
-        client.logger
-            .finer('No remote data for "$label", fetching from cache...');
-        result = await getLocal();
+      try {
+        if (result != null) {
+          client.logger
+              .finer('Got remote data for "$label", updating cache...');
+          await setLocal(result);
+        } else {
+          client.logger
+              .finer('No remote data for "$label", fetching from cache...');
+          result = await getLocal();
+        }
+      } catch (e) {
+        error = e;
       }
     }
 
     if (result == null) {
-      throw Exception('Failed to get');
+      throw Exception(error);
     }
 
     return result;

@@ -30,7 +30,7 @@ Add the following packages to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pocketbase_drift: ^0.1.2 # Use the latest version
+  pocketbase_drift: ^0.2.2 # Use the latest version
 ```
 
 ### 2. Initialize the Client
@@ -91,7 +91,7 @@ The `RequestPolicy` enum is central to this library and controls how requests ar
 
 -   `RequestPolicy.networkOnly`:
     -   Only ever reads data from the remote server.
-    -   Never uses the local cache for reading.
+    -   Never uses the local cache for writing.
     -   Will throw an exception if the network is unavailable.
 
 ### Offline Support

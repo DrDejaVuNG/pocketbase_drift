@@ -28,7 +28,7 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
     String lang = "en-US",
     $AuthStore? authStore,
     DatabaseConnection? connection,
-    String dbName = 'files',
+    String dbName = 'pb_drift.db',
     Client Function()? httpClientFactory,
   }) {
     final db = DataBase(
