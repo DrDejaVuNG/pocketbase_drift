@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Resolved pub.dev issue
+
 ## 0.3.0
 
 **BREAKING CHANGES**: Added new `RequestPolicy` options for more explicit control over caching and network behavior.

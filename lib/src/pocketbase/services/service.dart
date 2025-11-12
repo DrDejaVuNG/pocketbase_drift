@@ -378,12 +378,16 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? fields,
   }) async {
     return switch (requestPolicy) {
-      RequestPolicy.cacheOnly => _createCacheOnly(body, query, files, headers, expand, fields),
-      RequestPolicy.networkOnly => _createNetworkOnly(body, query, files, headers, expand, fields),
-      RequestPolicy.cacheFirst => _createCacheFirst(body, query, files, headers, expand, fields),
-      RequestPolicy.networkFirst => _createNetworkFirst(body, query, files, headers, expand, fields),
-      RequestPolicy.cacheAndNetwork => _createCacheAndNetwork(
-            body, query, files, headers, expand, fields),
+      RequestPolicy.cacheOnly =>
+        _createCacheOnly(body, query, files, headers, expand, fields),
+      RequestPolicy.networkOnly =>
+        _createNetworkOnly(body, query, files, headers, expand, fields),
+      RequestPolicy.cacheFirst =>
+        _createCacheFirst(body, query, files, headers, expand, fields),
+      RequestPolicy.networkFirst =>
+        _createNetworkFirst(body, query, files, headers, expand, fields),
+      RequestPolicy.cacheAndNetwork =>
+        _createCacheAndNetwork(body, query, files, headers, expand, fields),
     };
   }
 
@@ -507,8 +511,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         expand: expand,
         fields: fields,
         files: bufferedFiles
-            .map((d) =>
-                http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+            .map(
+                (d) => http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
             .toList(),
       );
 
@@ -528,14 +532,16 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
       if (bufferedFiles.isNotEmpty) {
         final serverRecordId = serverRecordData['id'] as String?;
         if (serverRecordId != null) {
-          await _cacheFilesToDb(serverRecordId, serverRecordData, bufferedFiles);
+          await _cacheFilesToDb(
+              serverRecordId, serverRecordData, bufferedFiles);
         }
       }
 
       client.logger
           .fine('Background create for $service/$localId synced successfully.');
     } catch (e) {
-      client.logger.warning('Background create for $service/$localId failed.', e);
+      client.logger
+          .warning('Background create for $service/$localId failed.', e);
       rethrow;
     }
   }
@@ -565,8 +571,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         expand: expand,
         fields: fields,
         files: bufferedFiles
-            .map((d) =>
-                http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+            .map(
+                (d) => http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
             .toList(),
       );
     } on ClientException catch (e) {
@@ -603,7 +609,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
 
     final recordIdForFiles = recordDataForCache['id'] as String?;
     if (recordIdForFiles != null) {
-      await _cacheFilesToDb(recordIdForFiles, recordDataForCache, bufferedFiles);
+      await _cacheFilesToDb(
+          recordIdForFiles, recordDataForCache, bufferedFiles);
     }
 
     return result;
@@ -662,7 +669,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
                 'Failed to create (then update) record $body in $service: $e, then $updateE');
           }
         } else {
-          client.logger.warning('Failed to create record $body in $service: $e');
+          client.logger
+              .warning('Failed to create record $body in $service: $e');
         }
       } catch (e) {
         client.logger.warning('Failed to create record $body in $service: $e');
@@ -702,12 +710,16 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     String? fields,
   }) async {
     return switch (requestPolicy) {
-      RequestPolicy.cacheOnly => _updateCacheOnly(id, body, query, files, headers, expand, fields),
-      RequestPolicy.networkOnly => _updateNetworkOnly(id, body, query, files, headers, expand, fields),
-      RequestPolicy.cacheFirst => _updateCacheFirst(id, body, query, files, headers, expand, fields),
-      RequestPolicy.networkFirst => _updateNetworkFirst(id, body, query, files, headers, expand, fields),
-      RequestPolicy.cacheAndNetwork => _updateCacheAndNetwork(
-            id, body, query, files, headers, expand, fields),
+      RequestPolicy.cacheOnly =>
+        _updateCacheOnly(id, body, query, files, headers, expand, fields),
+      RequestPolicy.networkOnly =>
+        _updateNetworkOnly(id, body, query, files, headers, expand, fields),
+      RequestPolicy.cacheFirst =>
+        _updateCacheFirst(id, body, query, files, headers, expand, fields),
+      RequestPolicy.networkFirst =>
+        _updateNetworkFirst(id, body, query, files, headers, expand, fields),
+      RequestPolicy.cacheAndNetwork =>
+        _updateCacheAndNetwork(id, body, query, files, headers, expand, fields),
     };
   }
 
@@ -801,7 +813,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
 
     // Try server in background
     if (client.connectivity.isConnected) {
-      _tryUpdateOnServer(id, body, query, bufferedFiles, headers, expand, fields)
+      _tryUpdateOnServer(
+              id, body, query, bufferedFiles, headers, expand, fields)
           .catchError((e) {
         client.logger.warning(
             'Background update for $service/$id failed, will retry later.', e);
@@ -829,8 +842,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         expand: expand,
         fields: fields,
         files: bufferedFiles
-            .map((d) =>
-                http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+            .map(
+                (d) => http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
             .toList(),
       );
 
@@ -886,8 +899,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         expand: expand,
         fields: fields,
         files: bufferedFiles
-            .map((d) =>
-                http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
+            .map(
+                (d) => http.MultipartFile.fromBytes(d.$1, d.$3, filename: d.$2))
             .toList(),
       );
     } on ClientException catch (e) {
@@ -1014,8 +1027,10 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
       RequestPolicy.cacheOnly => _deleteCacheOnly(id, body, query, headers),
       RequestPolicy.networkOnly => _deleteNetworkOnly(id, body, query, headers),
       RequestPolicy.cacheFirst => _deleteCacheFirst(id, body, query, headers),
-      RequestPolicy.networkFirst => _deleteNetworkFirst(id, body, query, headers),
-      RequestPolicy.cacheAndNetwork => _deleteCacheAndNetwork(id, body, query, headers),
+      RequestPolicy.networkFirst =>
+        _deleteNetworkFirst(id, body, query, headers),
+      RequestPolicy.cacheAndNetwork =>
+        _deleteCacheAndNetwork(id, body, query, headers),
     };
   }
 
@@ -1071,7 +1086,9 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
 
     // Try server in background
     if (client.connectivity.isConnected) {
-      super.delete(id, body: body, query: query, headers: headers).catchError((e) {
+      super
+          .delete(id, body: body, query: query, headers: headers)
+          .catchError((e) {
         client.logger.warning(
             'Background delete for $service/$id failed, will retry later.', e);
       });
@@ -1182,14 +1199,14 @@ enum RequestPolicy {
 extension RequestPolicyUtils on RequestPolicy {
   /// Returns true if the policy performs a synchronous network operation
   /// that blocks and returns network data immediately.
-  /// 
+  ///
   /// Note: `cacheFirst` is not included even though it syncs to network in background,
   /// because it returns cache data immediately without waiting for network.
   bool get isNetwork =>
       this == RequestPolicy.networkOnly ||
       this == RequestPolicy.networkFirst ||
       this == RequestPolicy.cacheAndNetwork;
-  
+
   /// Returns true if the policy reads from or writes to cache.
   bool get isCache =>
       this == RequestPolicy.cacheOnly ||
@@ -1217,9 +1234,12 @@ extension RequestPolicyUtils on RequestPolicy {
     return switch (this) {
       RequestPolicy.cacheOnly => _fetchCacheOnly(label, client, getLocal),
       RequestPolicy.networkOnly => _fetchNetworkOnly(label, client, remote),
-      RequestPolicy.cacheFirst => _fetchCacheFirst(label, client, remote, getLocal, setLocal),
-      RequestPolicy.networkFirst => _fetchNetworkFirst(label, client, remote, getLocal, setLocal),
-      RequestPolicy.cacheAndNetwork => _fetchNetworkFirst(label, client, remote, getLocal, setLocal),
+      RequestPolicy.cacheFirst =>
+        _fetchCacheFirst(label, client, remote, getLocal, setLocal),
+      RequestPolicy.networkFirst =>
+        _fetchNetworkFirst(label, client, remote, getLocal, setLocal),
+      RequestPolicy.cacheAndNetwork =>
+        _fetchNetworkFirst(label, client, remote, getLocal, setLocal),
     };
   }
 
@@ -1316,8 +1336,8 @@ extension RequestPolicyUtils on RequestPolicy {
         try {
           await setLocal(result);
         } catch (e) {
-          client.logger
-              .warning('Failed to update cache for "$label" after network fetch.', e);
+          client.logger.warning(
+              'Failed to update cache for "$label" after network fetch.', e);
         }
         return result;
       } catch (e) {
