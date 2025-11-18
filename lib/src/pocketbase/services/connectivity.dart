@@ -30,7 +30,11 @@ class ConnectivityService {
     // Emit the current status to new listeners immediately.
     // Using Timer.run to ensure it's added asynchronously in the next microtask,
     // allowing the listener to be fully set up.
-    Timer.run(() => _statusController.add(isConnected));
+    Timer.run(() {
+      if (!_statusController.isClosed) {
+        _statusController.add(isConnected);
+      }
+    });
     return _statusController.stream;
   }
 
@@ -48,7 +52,9 @@ class ConnectivityService {
     final newStatus = !result.contains(ConnectivityResult.none);
     if (newStatus != isConnected) {
       isConnected = newStatus;
-      _statusController.add(isConnected);
+      if (!_statusController.isClosed) {
+        _statusController.add(isConnected);
+      }
       _logger.info('Status changed: ${isConnected ? "Online" : "Offline"}');
     }
   }

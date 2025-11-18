@@ -1,3 +1,9 @@
+## 0.3.2
+
+### Bug Fixes
+
+- **Critical: Fixed pending sync execution on app restart** - Resolved a critical issue where pending changes would not sync when the app was completely closed and reopened. The sync mechanism now queries the database to identify services with pending records instead of relying on an in-memory cache that gets cleared on app restart. This ensures that all offline changes are reliably synced when connectivity is restored, even after a complete app restart.
+
 ## 0.3.1
 
 - Resolved pub.dev issue

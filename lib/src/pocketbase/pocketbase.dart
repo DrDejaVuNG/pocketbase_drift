@@ -19,7 +19,6 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
   }) : connectivity = ConnectivityService() {
     WidgetsBinding.instance.addObserver(this);
     _listenForConnectivityChanges();
-    _proactiveSyncOnStartup();
   }
 
   factory $PocketBase.database(
@@ -88,47 +87,49 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
     }
   }
 
-  void _proactiveSyncOnStartup() {
-    // Add a microtask delay to allow the service to fully initialize
-    // and for the initial connectivity check to potentially complete.
-    Timer.run(() async {
-      logger.info('Performing proactive connectivity check on startup.');
-      // Explicitly check connectivity to ensure the latest state.
-      await connectivity.checkConnectivity();
-
-      // If online, try to sync. This handles the case where the app starts
-      // online with pending items and no connectivity change event is fired.
-      if (connectivity.isConnected) {
-        logger
-            .info('App started online. Checking for pending changes to sync.');
-        _retrySyncForAllServices();
-      } else {
-        logger.info(
-            'App started offline. Pending changes will sync when connectivity is restored.');
-      }
-    });
-  }
-
   Future<void> _retrySyncForAllServices() async {
     // A sync is starting, create a new, un-completed completer.
     _syncCompleter = Completer<void>();
 
     try {
-      final futures = <Future<void>>[];
+      // Query database to find services with pending records
+      // This ensures we sync even if service instances haven't been created yet
+      // Note: In SQLite, JSON booleans are stored as 0 (false) and 1 (true)
+      final pendingServicesQuery = await db
+          .customSelect("SELECT DISTINCT service FROM services WHERE "
+              "json_extract(data, '\$.synced') = 0 AND "
+              "(json_extract(data, '\$.noSync') IS NULL OR json_extract(data, '\$.noSync') = 0)")
+          .get();
 
-      // If no services have been used, there's nothing to sync.
-      if (_recordServices.isEmpty) {
-        logger.info('No services to sync.');
+      if (pendingServicesQuery.isEmpty) {
+        logger.info('No pending changes to sync.');
         _syncCompleter!.complete();
         return;
       }
 
-      for (final service in _recordServices.values) {
+      final futures = <Future<void>>[];
+
+      // Initialize service instances and sync for each service with pending records
+      for (final row in pendingServicesQuery) {
+        final serviceName = row.read<String>('service');
+
+        // Skip schema and any other system services
+        if (serviceName == 'schema') continue;
+
+        // Get or create the service instance (this populates _recordServices)
+        final service = collection(serviceName);
+
         // Convert stream to future and collect all sync operations
         final future = service.retryLocal().last.then((_) {
-          logger.fine('Sync completed for service: ${service.service}');
+          logger.fine('Sync completed for service: $serviceName');
         });
         futures.add(future);
+      }
+
+      if (futures.isEmpty) {
+        logger.info('No services to sync (only system records pending).');
+        _syncCompleter!.complete();
+        return;
       }
 
       // Wait for all services to complete their sync
