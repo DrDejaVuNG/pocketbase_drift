@@ -155,6 +155,31 @@ class FilterParser {
     }
   }
 
+  /// Normalizes quotes in a value string to use single quotes for SQLite string literals.
+  ///
+  /// In SQLite:
+  /// - Single quotes (') are used for string literals (values)
+  /// - Double quotes (") are used for identifiers (column/table names)
+  ///
+  /// This method converts double-quoted values to single-quoted to prevent SQLite
+  /// from misinterpreting values as identifiers, which can cause errors when the
+  /// value happens to match a column name.
+  ///
+  /// Example: "value" -> 'value'
+  String _normalizeValueQuotes(String value) {
+    // Check if the value is wrapped in double quotes
+    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+      // Extract the content inside the double quotes
+      final content = value.substring(1, value.length - 1);
+      // Escape any single quotes in the content by doubling them (SQLite convention)
+      final escapedContent = content.replaceAll("'", "''");
+      // Wrap in single quotes
+      return "'$escapedContent'";
+    }
+    // If already single-quoted or not quoted, return as-is
+    return value;
+  }
+
   /// Builds the final SQL string from the tokenized parts.
   String _buildSql() {
     final sqlParts = <String>[];
@@ -168,11 +193,15 @@ class FilterParser {
           sqlParts.add('$fieldSql $operatorSql');
         } else {
           String valueSql = token.value!;
+
+          // Normalize quotes: convert double quotes to single quotes for string literals
+          // This ensures correct SQLite semantics (single quotes = values, double quotes = identifiers)
+          valueSql = _normalizeValueQuotes(valueSql);
+
           // PocketBase's LIKE operators (~ and !~) auto-wrap the value in '%'
           // if no wildcard is present. We replicate that behavior here.
           if (token.operator == '~' || token.operator == '!~') {
-            // The value comes from the regex with its quotes intact (e.g., '"test"').
-            // We need to check if the content inside the quotes has a '%'.
+            // The value now has single quotes. Check if the content has a '%'.
             if (!valueSql.substring(1, valueSql.length - 1).contains('%')) {
               final unquotedValue = valueSql.substring(1, valueSql.length - 1);
               // Re-quote with the wildcards.

@@ -14,7 +14,7 @@ void main() {
       // Using '||'
       var filter = 'name = "test" || status = "pending"';
       var expectedSql =
-          "json_extract(services.data, '\$.name') = \"test\" OR json_extract(services.data, '\$.status') = \"pending\"";
+          "json_extract(services.data, '\$.name') = 'test' OR json_extract(services.data, '\$.status') = 'pending'";
       expect(parseFilter(filter), expectedSql);
 
       // Using 'OR' (case-insensitive)
@@ -25,7 +25,7 @@ void main() {
     test('parses nested expressions with parentheses correctly', () {
       final filter = 'id = "123" && (status = "done" || name ~ "task")';
       final expectedSql =
-          "id = \"123\" AND (json_extract(services.data, '\$.status') = \"done\" OR json_extract(services.data, '\$.name') LIKE '%task%')";
+          "id = '123' AND (json_extract(services.data, '\$.status') = 'done' OR json_extract(services.data, '\$.name') LIKE '%task%')";
       expect(parseFilter(filter), expectedSql);
     });
 
@@ -33,7 +33,7 @@ void main() {
       final filter =
           '(name = "A" && (status = "B" || status = "C")) || id = "D"';
       final expectedSql =
-          "(json_extract(services.data, '\$.name') = \"A\" AND (json_extract(services.data, '\$.status') = \"B\" OR json_extract(services.data, '\$.status') = \"C\")) OR id = \"D\"";
+          "(json_extract(services.data, '\$.name') = 'A' AND (json_extract(services.data, '\$.status') = 'B' OR json_extract(services.data, '\$.status') = 'C')) OR id = 'D'";
       expect(parseFilter(filter), expectedSql);
     });
 
@@ -54,14 +54,14 @@ void main() {
       final filter =
           'created > "2024-01-01" && (status = "active" || (priority > 5 && owner IS NOT NULL))';
       final expectedSql =
-          "created > \"2024-01-01\" AND (json_extract(services.data, '\$.status') = \"active\" OR (json_extract(services.data, '\$.priority') > 5 AND json_extract(services.data, '\$.owner') IS NOT NULL))";
+          "created > '2024-01-01' AND (json_extract(services.data, '\$.status') = 'active' OR (json_extract(services.data, '\$.priority') > 5 AND json_extract(services.data, '\$.owner') IS NOT NULL))";
       expect(parseFilter(filter), expectedSql);
     });
 
     test('handles whitespace and different operator casings', () {
       final filter = ' name   =   "test"   OR   status != "done" ';
       final expectedSql =
-          "json_extract(services.data, '\$.name') = \"test\" OR json_extract(services.data, '\$.status') != \"done\"";
+          "json_extract(services.data, '\$.name') = 'test' OR json_extract(services.data, '\$.status') != 'done'";
       expect(parseFilter(filter), expectedSql);
     });
   });

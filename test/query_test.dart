@@ -78,7 +78,7 @@ void main() {
         filter: 'id = "1234"',
       );
       expect(statement,
-          'SELECT id, created FROM services WHERE service = ? AND (id = "1234") ORDER BY created DESC, id ASC');
+          'SELECT id, created FROM services WHERE service = ? AND (id = \'1234\') ORDER BY created DESC, id ASC');
     });
 
     // test('string multi split', () {
@@ -97,7 +97,7 @@ void main() {
     test('json_extract filter', () {
       final (statement, _) = db.queryBuilder('todo', filter: 'name = "test1"');
       expect(statement,
-          "SELECT * FROM services WHERE service = ? AND (json_extract(services.data, '\$.name') = \"test1\")");
+          "SELECT * FROM services WHERE service = ? AND (json_extract(services.data, '\$.name') = 'test1')");
     });
 
     test('queryBuilder field name replacement with word boundaries', () {

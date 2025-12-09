@@ -1,6 +1,7 @@
 ## 0.3.3
 
 - **Added partial update support with validation for offline scenarios** - Partial updates are now supported for offline scenarios, with validation to ensure that the update is valid before it is applied.
+- **Fixed SQLite quote semantics issue** - Resolved an issue where SQLite quote semantics were not being handled correctly, which could cause errors when using double quotes inside query filters.
 
 ## 0.3.2
 
