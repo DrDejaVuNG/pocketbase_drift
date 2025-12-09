@@ -491,7 +491,36 @@ class DataBase extends _$DataBase {
     String id,
     Map<String, dynamic> data, {
     bool validate = true,
-  }) {
+  }) async {
+    // For updates with validation enabled, we need to merge with existing data
+    // to ensure all required fields are present during validation
+    if (validate && service != 'schema') {
+      // Fetch the existing record
+      final existingRecords = await $query(
+        service,
+        filter: 'id = "$id"',
+        limit: 1,
+      ).get();
+
+      if (existingRecords.isNotEmpty) {
+        final existingData = existingRecords.first;
+        // Merge existing data with update data (update data takes precedence)
+        // This ensures required fields from the existing record are present
+        final mergedData = <String, dynamic>{
+          ...existingData,
+          ...data,
+          'id': id, // Ensure ID is always set
+        };
+
+        return $create(
+          service,
+          mergedData,
+          validate: validate,
+        );
+      }
+    }
+
+    // Fallback: If no existing record found or validation is disabled
     return $create(
       service,
       {...data, 'id': id},
