@@ -698,6 +698,10 @@ class DataBase extends _$DataBase {
   /// This method is more efficient than `setLocal` for list updates because it
   /// only writes records that are new or have a more recent 'updated' timestamp
   /// than their local counterparts.
+  ///
+  /// **Important**: This method does NOT delete records that exist locally but
+  /// are missing from the `items` list. Use [syncLocal] for full synchronization
+  /// that includes deletion of stale records.
   Future<void> mergeLocal(
     String service,
     List<Map<String, dynamic>> items,
@@ -784,6 +788,129 @@ class DataBase extends _$DataBase {
               ?.toIso8601String()),
         );
         b.insert(services, row, onConflict: DoUpdate((old) => row));
+      }
+    });
+  }
+
+  /// Synchronizes local database with server data, including deletion of stale records.
+  ///
+  /// This method performs a complete sync by:
+  /// 1. Merging incoming items (add new, update existing)
+  /// 2. Deleting local records that match the filter but weren't in the server response
+  ///
+  /// **Filter-Aware Deletion Logic:**
+  /// When a filter is provided, this method queries the local cache with the SAME filter
+  /// and only deletes records that:
+  /// - Match the filter locally (would have been returned if still valid)
+  /// - Were NOT in the server response
+  /// - Are NOT pending local changes (synced != false)
+  ///
+  /// This correctly handles scenarios like:
+  /// - Deleted posts in a community feed
+  /// - Removed items from a filtered list
+  /// - Records that no longer match filter criteria
+  ///
+  /// **Important:** This should only be called after fetching ALL pages of data
+  /// (e.g., from getFullList), not for single-page paginated fetches.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Sync all posts from community X - will delete stale posts for this community
+  /// await db.syncLocal('posts', serverPosts, filter: "community = 'communityX'");
+  ///
+  /// // Unfiltered sync - will delete any stale records in the collection
+  /// await db.syncLocal('todos', allTodosFromServer);
+  /// ```
+  Future<void> syncLocal(
+    String service,
+    List<Map<String, dynamic>> items, {
+    String? filter,
+  }) async {
+    // 1. First, merge the incoming items (handles add/update)
+    await mergeLocal(service, items);
+
+    // 2. Get the IDs of records returned by the server
+    final incomingIds =
+        items.map((i) => i['id'] as String?).whereType<String>().toSet();
+
+    // 3. Edge case: If server returned items but none had valid IDs, something's wrong
+    if (incomingIds.isEmpty && items.isNotEmpty) {
+      logger.warning(
+          'syncLocal for "$service": No valid IDs in incoming items, skipping deletion phase');
+      return;
+    }
+
+    // 4. Query local records with the SAME filter
+    // This is the key insight: we only consider records that WOULD have been
+    // returned by the server if they still existed/matched the criteria
+    final localRecords = await $query(
+      service,
+      filter: filter,
+    ).get();
+
+    // 5. Find records to delete:
+    // - Match the filter (are in localRecords)
+    // - Were NOT returned by server (not in incomingIds)
+    // - Are synced (not pending local changes we haven't pushed yet)
+    // - Are not marked as local-only (noSync != true)
+    final recordsToDelete = <String>[];
+    for (final localRecord in localRecords) {
+      final localId = localRecord['id'] as String?;
+      if (localId == null) continue;
+
+      // Skip if the record was in the server response
+      if (incomingIds.contains(localId)) continue;
+
+      // Skip records that haven't been synced yet (local creates/updates pending)
+      final synced = localRecord['synced'];
+      if (synced == false) {
+        logger.finer(
+            'syncLocal for "$service": Keeping unsynced record $localId');
+        continue;
+      }
+
+      // Skip local-only records
+      final noSync = localRecord['noSync'];
+      if (noSync == true) {
+        logger.finer(
+            'syncLocal for "$service": Keeping local-only record $localId');
+        continue;
+      }
+
+      // Skip records marked for local deletion (will be handled by retry)
+      final deleted = localRecord['deleted'];
+      if (deleted == true) {
+        logger.finer(
+            'syncLocal for "$service": Keeping pending-delete record $localId');
+        continue;
+      }
+
+      recordsToDelete.add(localId);
+    }
+
+    if (recordsToDelete.isEmpty) {
+      logger.fine('syncLocal for "$service": No stale records to delete.');
+      return;
+    }
+
+    // 6. Safety check: Don't delete everything if server returned empty
+    // This protects against server errors causing mass data loss
+    if (incomingIds.isEmpty && recordsToDelete.length > 10) {
+      logger.warning(
+          'syncLocal for "$service": Server returned empty but ${recordsToDelete.length} '
+          'local records would be deleted. Skipping deletion as safety measure. '
+          'If this is intentional, use deleteAll() instead.');
+      return;
+    }
+
+    logger.fine(
+        'syncLocal for "$service": Deleting ${recordsToDelete.length} stale records '
+        '(filter: ${filter ?? "none"})');
+
+    // 7. Delete the stale records
+    await batch((b) {
+      for (final id in recordsToDelete) {
+        $delete(service, id, batch: b);
       }
     });
   }

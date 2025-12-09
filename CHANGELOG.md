@@ -1,7 +1,23 @@
 ## 0.3.3
 
-- **Added partial update support with validation for offline scenarios** - Partial updates are now supported for offline scenarios, with validation to ensure that the update is valid before it is applied.
-- **Fixed SQLite quote semantics issue** - Resolved an issue where SQLite quote semantics were not being handled correctly, which could cause errors when using double quotes inside query filters.
+### New Features
+
+- **Filter-aware sync for deleted records** - Added `syncLocal` method that intelligently syncs deletions from the server to local cache. When fetching data with `getFullList`, the system now detects and removes records that were deleted on the server while offline, even when using filtered queries. This ensures local cache stays in sync with server state.
+  - Works with both filtered and unfiltered queries
+  - Only deletes records within the filter scope
+  - Preserves unsynced local changes, local-only records, and pending deletions
+  - Includes safety check to prevent mass deletion on server errors
+
+### Improvements
+
+- **Enhanced `getFullList` behavior** - Now automatically calls `syncLocal` after fetching all pages, ensuring deleted records are cleaned up from local cache
+- **Added comprehensive test coverage** - New test suite (`sync_local_test.dart`) with 7 tests covering all edge cases for filter-aware deletion
+
+### Bug Fixes
+
+- **Fixed partial update validation for offline scenarios** - Partial updates now correctly merge with existing record data before validation, allowing updates with only changed fields when using `cacheFirst` or `cacheOnly` policies
+- **Fixed SQLite quote semantics in filters** - Added automatic quote normalization in filter parser to convert double quotes to single quotes for string literals, preventing SQLite from misinterpreting values as identifiers. Both `'id = "$id"'` and `"id = '$id'"` now produce correct SQL
+
 
 ## 0.3.2
 

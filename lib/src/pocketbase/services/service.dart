@@ -147,6 +147,80 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     Map<String, String> headers = const {},
     RequestPolicy requestPolicy = RequestPolicy.cacheAndNetwork,
     Duration timeout = const Duration(seconds: 30),
+  }) async {
+    // For cache-only or network-only, use the standard flow
+    if (requestPolicy == RequestPolicy.cacheOnly ||
+        requestPolicy == RequestPolicy.networkOnly) {
+      return _getFullListStandard(
+        batch: batch,
+        expand: expand,
+        filter: filter,
+        sort: sort,
+        fields: fields,
+        query: query,
+        headers: headers,
+        requestPolicy: requestPolicy,
+        timeout: timeout,
+      );
+    }
+
+    // For policies that involve the network, we want to sync deletions
+    final result = <M>[];
+    final allItems = <Map<String, dynamic>>[];
+
+    Future<List<M>> request(int page) async {
+      return getList(
+        page: page,
+        perPage: batch,
+        filter: filter,
+        sort: sort,
+        fields: fields,
+        expand: expand,
+        query: query,
+        headers: headers,
+        requestPolicy: requestPolicy,
+        timeout: timeout,
+      ).then((list) {
+        result.addAll(list.items);
+        // Collect raw JSON for sync operation
+        allItems.addAll(list.items.map((e) => e.toJson()).toList());
+
+        client.logger.finer(
+            'Fetched page for "$service": ${list.page}/${list.totalPages} (${list.items.length} items)');
+        if (list.items.length < batch ||
+            list.items.isEmpty ||
+            list.page == list.totalPages) {
+          // All pages fetched - now sync with deletion detection
+          // syncLocal uses filter-aware deletion: only deletes local records
+          // that match the same filter but weren't in the server response
+          client.logger.fine(
+              'Full list fetch complete for "$service", syncing with deletion detection (filter: ${filter ?? "none"})');
+          client.db
+              .syncLocal(service, allItems, filter: filter)
+              .catchError((e) {
+            client.logger.warning(
+                'Error during syncLocal for "$service" after getFullList', e);
+          });
+          return result;
+        }
+        return request(page + 1);
+      });
+    }
+
+    return request(1);
+  }
+
+  /// Standard getFullList implementation without deletion sync
+  Future<List<M>> _getFullListStandard({
+    required int batch,
+    required String? expand,
+    required String? filter,
+    required String? sort,
+    required String? fields,
+    required Map<String, dynamic> query,
+    required Map<String, String> headers,
+    required RequestPolicy requestPolicy,
+    required Duration timeout,
   }) {
     final result = <M>[];
 
