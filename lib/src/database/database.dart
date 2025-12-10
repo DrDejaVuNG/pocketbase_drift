@@ -935,6 +935,97 @@ class DataBase extends _$DataBase {
     return result?.responseData;
   }
 
+  /// Deletes synced records that haven't been updated since [cutoffDate].
+  ///
+  /// This only removes records that:
+  /// - Are marked as synced (not pending local changes)
+  /// - Have an `updated` timestamp older than the cutoff
+  /// - Are not marked as local-only (noSync)
+  ///
+  /// Returns the number of records deleted.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Delete records older than 60 days
+  /// final deleted = await db.cleanupExpiredRecords(
+  ///   cutoffDate: DateTime.now().subtract(Duration(days: 60)),
+  /// );
+  /// ```
+  Future<int> cleanupExpiredRecords({required DateTime cutoffDate}) async {
+    final cutoffString = cutoffDate.toIso8601String();
+
+    // First count how many will be deleted
+    final countResult = await customSelect(
+      '''
+      SELECT COUNT(*) as count FROM services
+      WHERE updated < ?
+        AND json_extract(data, '\$.synced') = 1
+        AND (json_extract(data, '\$.noSync') IS NULL OR json_extract(data, '\$.noSync') = 0)
+        AND (json_extract(data, '\$.deleted') IS NULL OR json_extract(data, '\$.deleted') = 0)
+      ''',
+      variables: [Variable<String>(cutoffString)],
+    ).getSingle();
+    final deletedCount = countResult.read<int>('count');
+
+    if (deletedCount > 0) {
+      // Only delete records that are:
+      // 1. Synced (synced = true)
+      // 2. Not local-only (noSync is null or false)
+      // 3. Not marked for deletion (deleted = false or null)
+      // 4. Updated before the cutoff date
+      await customStatement(
+        '''
+        DELETE FROM services
+        WHERE updated < ?
+          AND json_extract(data, '\$.synced') = 1
+          AND (json_extract(data, '\$.noSync') IS NULL OR json_extract(data, '\$.noSync') = 0)
+          AND (json_extract(data, '\$.deleted') IS NULL OR json_extract(data, '\$.deleted') = 0)
+        ''',
+        [cutoffString],
+      );
+      logger.info(
+          'Cleaned up $deletedCount expired records (older than $cutoffString)');
+    }
+    return deletedCount;
+  }
+
+  /// Deletes cached responses that were cached before [cutoffDate].
+  ///
+  /// Returns the number of cached responses deleted.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Delete cached responses older than 30 days
+  /// final deleted = await db.cleanupExpiredResponses(
+  ///   cutoffDate: DateTime.now().subtract(Duration(days: 30)),
+  /// );
+  /// ```
+  Future<int> cleanupExpiredResponses({required DateTime cutoffDate}) async {
+    final result = await (delete(cachedResponses)
+          ..where((tbl) => tbl.cachedAt.isSmallerThanValue(cutoffDate)))
+        .go();
+
+    if (result > 0) {
+      logger.info('Cleaned up $result expired cached responses');
+    }
+    return result;
+  }
+
+  /// Deletes expired file blobs that have passed their expiration date.
+  ///
+  /// Returns the number of file blobs deleted.
+  Future<int> cleanupExpiredFiles() async {
+    final now = DateTime.now();
+    final result = await (delete(blobFiles)
+          ..where((tbl) => tbl.expiration.isSmallerThanValue(now)))
+        .go();
+
+    if (result > 0) {
+      logger.info('Cleaned up $result expired file blobs');
+    }
+    return result;
+  }
+
   Future<void> clearAllData() async {
     await transaction(() async {
       await delete(services).go();

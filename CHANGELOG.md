@@ -1,3 +1,14 @@
+## 0.3.4
+
+### New Features
+
+- **Cache TTL & Expiration** - Added configurable time-to-live (TTL) for cached data. Old synced records and cached responses are automatically cleaned up when `runMaintenance()` is called.
+  - Configurable `cacheTtl` parameter in `$PocketBase.database()` (default: 60 days)
+  - New `runMaintenance()` method to clean up expired cache data
+  - Returns `MaintenanceResult` with counts of deleted items
+  - Only removes synced data - unsynced local changes are always preserved
+  - Cleans up expired file blobs automatically
+
 ## 0.3.3
 
 ### New Features

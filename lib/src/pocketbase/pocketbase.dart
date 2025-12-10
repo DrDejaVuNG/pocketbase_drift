@@ -13,6 +13,7 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
   $PocketBase(
     super.baseUrl, {
     required this.db,
+    this.cacheTtl = const Duration(days: 60),
     super.lang,
     super.authStore,
     super.httpClientFactory,
@@ -28,23 +29,31 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
     $AuthStore? authStore,
     DatabaseConnection? connection,
     String dbName = 'pb_drift.db',
+    Duration cacheTtl = const Duration(days: 60),
     Client Function()? httpClientFactory,
   }) {
     final db = DataBase(
       connection ?? connect(dbName, inMemory: inMemory),
     );
-    return $PocketBase(
+    final client = $PocketBase(
       baseUrl,
       db: db,
       lang: lang,
+      cacheTtl: cacheTtl,
       authStore: authStore?..db = db,
       httpClientFactory: httpClientFactory,
     );
+    return client;
   }
 
   final DataBase db;
   final ConnectivityService connectivity;
   final Logger logger = Logger('PocketBaseDrift.client');
+
+  /// The time-to-live duration for cached records and responses.
+  /// Records and responses older than this will be cleaned up when
+  /// [runMaintenance] is called. Default is 60 days.
+  final Duration cacheTtl;
 
   set logging(bool enable) {
     hierarchicalLoggingEnabled = true;
@@ -59,6 +68,56 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
 
   // Public getter to await sync completion
   Future<void> get syncCompleted => _syncCompleter?.future ?? Future.value();
+
+  /// Runs maintenance tasks to clean up expired cached data.
+  ///
+  /// This method removes:
+  /// - Synced records older than [cacheTtl] (default: 60 days)
+  /// - Cached responses older than [cacheTtl]
+  /// - Expired file blobs
+  ///
+  /// You can optionally override the TTL for this specific run.
+  ///
+  /// **Note**: This only affects synced data. Unsynced local changes,
+  /// local-only records, and pending deletions are preserved.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Run maintenance with the default TTL (60 days)
+  /// final result = await client.runMaintenance();
+  /// print('Cleaned up ${result.totalDeleted} items');
+  ///
+  /// // Run with a custom TTL
+  /// await client.runMaintenance(ttl: Duration(days: 7));
+  /// ```
+  Future<MaintenanceResult> runMaintenance({Duration? ttl}) async {
+    final effectiveTtl = ttl ?? cacheTtl;
+    final cutoffDate = DateTime.now().subtract(effectiveTtl);
+
+    logger.info('Running maintenance (TTL: ${effectiveTtl.inDays} days)...');
+
+    final deletedRecords =
+        await db.cleanupExpiredRecords(cutoffDate: cutoffDate);
+    final deletedResponses =
+        await db.cleanupExpiredResponses(cutoffDate: cutoffDate);
+    final deletedFiles = await db.cleanupExpiredFiles();
+
+    final result = MaintenanceResult(
+      deletedRecords: deletedRecords,
+      deletedResponses: deletedResponses,
+      deletedFiles: deletedFiles,
+    );
+
+    if (result.totalDeleted > 0) {
+      logger.info(
+          'Maintenance complete: ${result.totalDeleted} items cleaned up '
+          '($deletedRecords records, $deletedResponses responses, $deletedFiles files)');
+    } else {
+      logger.info('Maintenance complete: no expired items to clean up');
+    }
+
+    return result;
+  }
 
   void _listenForConnectivityChanges() {
     _connectivitySubscription?.cancel();
@@ -328,4 +387,31 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
 
   // @override
   // $BackupService get backups => $BackupService(this);
+}
+
+/// Result of running [runMaintenance] on the PocketBase client.
+///
+/// Contains counts of how many items were deleted during the cleanup.
+class MaintenanceResult {
+  const MaintenanceResult({
+    required this.deletedRecords,
+    required this.deletedResponses,
+    required this.deletedFiles,
+  });
+
+  /// Number of expired synced records that were deleted.
+  final int deletedRecords;
+
+  /// Number of expired cached responses that were deleted.
+  final int deletedResponses;
+
+  /// Number of expired file blobs that were deleted.
+  final int deletedFiles;
+
+  /// Total number of items deleted across all categories.
+  int get totalDeleted => deletedRecords + deletedResponses + deletedFiles;
+
+  @override
+  String toString() =>
+      'MaintenanceResult(records: $deletedRecords, responses: $deletedResponses, files: $deletedFiles, total: $totalDeleted)';
 }

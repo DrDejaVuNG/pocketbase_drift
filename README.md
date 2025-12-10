@@ -21,6 +21,7 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
 *   **Cross-Platform Support**: Works across all Flutter-supported platforms, including mobile (iOS, Android), web, and desktop (macOS, Windows, Linux).
 *   **File & Image Caching**: Includes a `PocketBaseImageProvider` that caches images in the local database for offline display.
 -   **Robust & Performant**: Includes optimizations for batching queries and file streaming on all platforms to handle large files efficiently.
+-   **Cache TTL & Maintenance**: Configurable time-to-live for cached data with automatic cleanup of expired synced records.
 
 ## Getting Started
 
@@ -30,7 +31,7 @@ Add the following packages to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pocketbase_drift: ^0.3.3 # Use the latest version
+  pocketbase_drift: ^0.3.4 # Use the latest version
 ```
 
 ### 2. Initialize the Client
@@ -246,7 +247,44 @@ await client.send(
 );
 ```
 
+### Cache TTL & Maintenance
+
+The library supports configurable cache expiration to prevent the local database from growing indefinitely. You can configure a time-to-live (TTL) for cached data and run periodic maintenance to clean up old entries.
+
+#### Configuration
+
+Set the `cacheTtl` when initializing the client (default is 60 days):
+
+```dart
+final client = $PocketBase.database(
+  'https://example.pocketbase.io',
+  cacheTtl: Duration(days: 30), // Custom TTL: 30 days
+);
+```
+
+#### Running Maintenance
+
+Call `runMaintenance()` to clean up expired cached data. This is typically done on app startup or periodically:
+
+```dart
+// Run maintenance with the configured TTL
+final result = await client.runMaintenance();
+print('Cleaned up ${result.totalDeleted} expired items');
+
+// Or run with a one-time custom TTL
+await client.runMaintenance(ttl: Duration(days: 7));
+```
+
+The `MaintenanceResult` provides details on what was cleaned up:
+- `deletedRecords` - Number of expired synced records deleted
+- `deletedResponses` - Number of expired cached API responses deleted
+- `deletedFiles` - Number of expired file blobs deleted
+- `totalDeleted` - Total items cleaned up
+
+**Important**: Maintenance only deletes **synced** data. Unsynced local changes, local-only records (`noSync: true`), and pending deletions are **never** removed, ensuring you never lose data that hasn't been synced to the server.
+
 ## TODO
+
 
 -   [X] Offline mutations and retry
 -   [X] Offline collections & records
@@ -258,6 +296,7 @@ await client.send(
 -   [X] Add support for indirect expand (e.g., `post.author.avatar`)
 -   [X] Add support for more complex query operators (e.g., ~ for LIKE/Contains)
 -   [X] More comprehensive test suite for edge cases
+-   [X] Cache TTL & maintenance for expired data cleanup
 
 ## Credits
  
