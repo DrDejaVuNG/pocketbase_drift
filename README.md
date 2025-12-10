@@ -15,7 +15,7 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
     *   **Sorting**: Sort results by any field with `sort` (e.g., `-created,name`).
     *   **Field Selection**: Limit the returned fields with `fields` for improved performance.
     *   **Pagination**: `limit` and `offset` are fully supported for local data.
-*   **Relation Expansion**: Support for expanding single and multi-level relations (e.g., `post.author`) directly from the local cache.
+*   **Relation Expansion**: Support for expanding single and multi-level relations (e.g., `post.author`) directly from the local cache, with full compatibility for the PocketBase SDK's `record.get<T>()` dot-notation path access.
 *   **Full-Text Search**: Integrated Full-Text Search (FTS5) for performing fast, local searches across all your cached record data.
 *   **Authentication Persistence**: User authentication state is persisted locally using `shared_preferences`, keeping users logged in across app sessions.
 *   **Cross-Platform Support**: Works across all Flutter-supported platforms, including mobile (iOS, Android), web, and desktop (macOS, Windows, Linux).
@@ -166,6 +166,69 @@ final posts = await client.collection('posts').getFullList(
 // Get a single record
 final post = await client.collection('posts').getOne('RECORD_ID');
 ```
+
+### Expanding Relations
+
+The library fully supports relation expansion from the local cache. When you expand relations, you can access nested data using the PocketBase SDK's dot-notation path syntax with `record.get<T>()`:
+
+```dart
+// Fetch a post with its author expanded
+final post = await client.collection('posts').getOne(
+  'RECORD_ID',
+  expand: 'author',
+);
+
+// Access expanded data using dot-notation paths
+final authorName = post.get<String>('expand.author.0.name');
+final authorEmail = post.get<String>('expand.author.0.email', 'N/A'); // With default
+
+// Get the expanded record as a RecordModel
+final author = post.get<RecordModel>('expand.author.0');
+print(author.get<String>('name'));
+
+// Get all expanded records as a list
+final authors = post.get<List<RecordModel>>('expand.author');
+```
+
+#### Nested (Multi-Level) Expansion
+
+You can expand multiple levels of relations and access deeply nested data:
+
+```dart
+// Expand nested relations: post -> author -> profile
+final post = await client.collection('posts').getOne(
+  'RECORD_ID',
+  expand: 'author.profile',
+);
+
+// Access deeply nested fields
+final bio = post.get<String>('expand.author.0.expand.profile.0.bio');
+final avatar = post.get<String>('expand.author.0.expand.profile.0.avatar');
+```
+
+#### Multi-Relation Expansion
+
+For relations that reference multiple records, access each by index:
+
+```dart
+// Fetch a post with multiple tags expanded
+final post = await client.collection('posts').getOne(
+  'RECORD_ID',
+  expand: 'tags',
+);
+
+// Access by index
+final firstTag = post.get<String>('expand.tags.0.name');
+final secondTag = post.get<String>('expand.tags.1.name');
+
+// Or iterate over all
+final tags = post.get<List<RecordModel>>('expand.tags');
+for (final tag in tags) {
+  print(tag.get<String>('name'));
+}
+```
+
+> **Note**: This works identically whether the data comes from the network or the local cache, ensuring a consistent API across online and offline scenarios.
 
 ### Creating and Updating Records
 

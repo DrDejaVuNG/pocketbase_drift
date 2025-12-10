@@ -1,3 +1,21 @@
+## 0.3.5
+
+### Documentation
+
+- **Expanding Relations Guide** - Added comprehensive documentation for accessing expanded relations using the PocketBase SDK's `record.get<T>()` dot-notation path syntax (e.g., `record.get<String>('expand.author.0.name')`). Covers basic expansion, nested (multi-level) expansion, and multi-relation access patterns.
+
+- **Advanced: Direct Database Access** - Added new documentation section explaining how to access the underlying Drift database directly via `client.db` for advanced use cases:
+  - Database schema overview (tables, columns, primary keys)
+  - Running raw SQL queries with `customSelect`
+  - Joining data across collections
+  - Reactive streams with raw SQL using `.watch()`
+  - Executing raw statements with `customStatement`
+  - Using the built-in `$query` method
+
+### Tests
+
+- Added `expand_dot_notation_test.dart` with 8 comprehensive tests validating that locally expanded relations work correctly with the PocketBase SDK's dot-notation path access API.
+
 ## 0.3.4
 
 ### New Features
