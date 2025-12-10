@@ -6,7 +6,7 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
 
 ## Features
 
-*   **Offline-First Architecture**: Read, create, update, and delete records even without a network connection. The client seamlessly uses the local database as the source of truth.
+*   **Offline-First Architecture**: Read, create, update, and delete records even without a network connection.
 *   **Automatic Synchronization**: Changes made while offline are automatically queued and retried when network connectivity is restored.
 *   **Reactive Data & UI**: Build reactive user interfaces with streams that automatically update when underlying data changes, whether from a server push or a local mutation.
 *   **Local Caching with Drift**: All collections and records are cached in a local SQLite database, providing fast, offline access to your data.
