@@ -12,6 +12,10 @@
 
 - **Enhanced `getFullList` behavior** - Now automatically calls `syncLocal` after fetching all pages, ensuring deleted records are cleaned up from local cache
 - **Added comprehensive test coverage** - New test suite (`sync_local_test.dart`) with 7 tests covering all edge cases for filter-aware deletion
+- **PocketBase-compatible ID generation** - Local IDs are now generated using PocketBase's exact format (`[a-z0-9]{15}`). This eliminates the need for ID remapping during sync, simplifying the offline-first flow:
+  - Records created offline now sync with the same ID they were created with
+  - Removed `shortid` dependency in favor of a built-in secure random generator
+  - Exported `newId()` function for use by consuming applications
 
 ### Bug Fixes
 

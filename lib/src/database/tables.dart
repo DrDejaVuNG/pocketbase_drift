@@ -1,8 +1,8 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:pocketbase/pocketbase.dart';
-import 'package:shortid/shortid.dart';
 
 @DataClassName('Service')
 class Services extends Table {
@@ -82,9 +82,20 @@ class SchemaFieldListMapper
       jsonEncode(value.map((e) => e.toJson()).toList());
 }
 
+/// Characters allowed in PocketBase IDs (lowercase alphanumeric only)
+const _pbIdChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+final _secureRandom = Random.secure();
+
+/// Generates a random 15-character alphanumeric string compatible with PocketBase.
+///
+/// PocketBase IDs must match the pattern `^[a-z0-9]+$` and be exactly 15 characters.
+/// This allows local IDs to be accepted by the server during sync, eliminating
+/// the need for ID remapping after server creation.
 String newId() {
-  const chars =
-      '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  shortid.characters(chars);
-  return shortid.generate().padLeft(15, '0');
+  return String.fromCharCodes(
+    Iterable.generate(
+      15,
+      (_) => _pbIdChars.codeUnitAt(_secureRandom.nextInt(_pbIdChars.length)),
+    ),
+  );
 }

@@ -69,7 +69,6 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
         } else if (item.data['isNew'] == true) {
           // Prepare body for creation by removing server-generated and local-only fields.
           final createBody = Map<String, dynamic>.from(item.toJson());
-          createBody.remove('id');
           createBody.remove('created');
           createBody.remove('updated');
           createBody.remove('collectionId');
@@ -79,19 +78,14 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
           createBody.remove('isNew');
           createBody.remove('deleted');
 
-          // Create the record on the server. RequestPolicy.cacheAndNetwork will
-          // automatically save the new server-authoritative record to the local DB.
-          final newRecord = await create(
+          // Create the record on the server with our local ID.
+          await create(
             body: createBody,
             requestPolicy: RequestPolicy.cacheAndNetwork,
             query: query,
             headers: headers,
           );
-
-          // Clean up the old record that had the temporary ID.
-          await client.db.$delete(service, tempId);
-          client.logger.fine(
-              'Successfully synced new item. Replaced temp ID $tempId with server ID ${newRecord.id}');
+          client.logger.fine('Successfully synced new item with ID ${item.id}');
 
           // The record was an existing one that was updated offline.
         } else {

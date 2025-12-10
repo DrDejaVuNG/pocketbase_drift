@@ -579,7 +579,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
   ) async {
     try {
       final serverRecord = await super.create(
-        body: body,
+        body: {...body, 'id': localId},
         query: query,
         headers: headers,
         expand: expand,
@@ -703,11 +703,17 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
     M? result;
     bool savedToNetwork = false;
 
+    // Generate a local PocketBase-compatible ID upfront.
+    // This ID will be used for both local cache and server creation.
+    final localId = body['id'] as String? ?? newId();
+    recordDataForCache['id'] = localId;
+
     // Try network if connected
     if (client.connectivity.isConnected) {
       try {
+        // Include our local ID so the server uses it
         result = await super.create(
-          body: body,
+          body: {...body, 'id': localId},
           query: query,
           headers: headers,
           expand: expand,
@@ -720,12 +726,13 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
         savedToNetwork = true;
         recordDataForCache = result.toJson();
       } on ClientException catch (e) {
-        if (e.statusCode == 400 && body['id'] != null) {
-          final id = body['id'] as String;
+        // If creation fails with 400 and we have an ID, try update instead
+        // (the record might already exist from a previous partial sync)
+        if (e.statusCode == 400) {
           final updateBody = Map<String, dynamic>.from(body)..remove('id');
           try {
             result = await super.update(
-              id,
+              localId,
               body: updateBody,
               query: query,
               headers: headers,
@@ -740,22 +747,24 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
             recordDataForCache = result.toJson();
           } catch (updateE) {
             client.logger.warning(
-                'Failed to create (then update) record $body in $service: $e, then $updateE');
+                'Failed to create (then update) record $localId in $service: $e, then $updateE');
           }
         } else {
           client.logger
-              .warning('Failed to create record $body in $service: $e');
+              .warning('Failed to create record $localId in $service: $e');
         }
       } catch (e) {
-        client.logger.warning('Failed to create record $body in $service: $e');
+        client.logger
+            .warning('Failed to create record $localId in $service: $e');
       }
     }
 
-    // Fallback to cache with pending sync
+    // Save to cache with our local ID
     final localRecordData = await client.db.$create(
       service,
       {
         ...recordDataForCache,
+        'id': localId,
         'deleted': false,
         'synced': savedToNetwork,
         'isNew': !savedToNetwork,
@@ -763,9 +772,8 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
       },
     );
 
-    final recordIdForFiles = localRecordData['id'] as String?;
-    if (recordIdForFiles != null) {
-      await _cacheFilesToDb(recordIdForFiles, localRecordData, bufferedFiles);
+    if (bufferedFiles.isNotEmpty) {
+      await _cacheFilesToDb(localId, localRecordData, bufferedFiles);
     }
     result = itemFactoryFunc(localRecordData);
 

@@ -25,6 +25,7 @@ library;
 export 'image.dart';
 export 'src/database/connection/connection.dart';
 export 'src/database/database.dart';
+export 'src/database/tables.dart' show newId;
 export 'src/database/filter_parser.dart';
 export 'src/pocketbase/pocketbase.dart';
 export 'src/pocketbase/services/records.dart';

@@ -125,27 +125,25 @@ void main() {
       final serverRecord = serverRecordList.first;
       expect(serverRecord.data['name'], equals(recordName));
 
+      // With PocketBase-compatible IDs, the local ID and server ID are now the same
+      expect(serverRecord.id, equals(offlineRecord.id),
+          reason: "Server should use the same PocketBase-compatible local ID.");
+
       final remainingPending = await todoCollection.pending().get();
       expect(remainingPending, isEmpty,
           reason:
               "There should be no pending records after a successful sync.");
 
-      final oldLocalRecord = await todoCollection.getOneOrNull(
+      // The local record should still exist (with the same ID) and be marked as synced
+      final localRecord = await todoCollection.getOneOrNull(
         offlineRecord.id,
         requestPolicy: RequestPolicy.cacheOnly,
       );
-      expect(oldLocalRecord, isNull,
-          reason: "The temporary local record should be deleted after sync.");
-
-      final newLocalRecord = await todoCollection.getOneOrNull(
-        serverRecord.id,
-        requestPolicy: RequestPolicy.cacheOnly,
-      );
-      expect(newLocalRecord, isNotNull,
+      expect(localRecord, isNotNull,
           reason:
-              "The synced record from the server should be in the local cache.");
-      expect(newLocalRecord!.id, serverRecord.id);
-      expect(newLocalRecord.data['synced'], isTrue,
+              "The local record should still exist with the same ID after sync.");
+      expect(localRecord!.id, equals(serverRecord.id));
+      expect(localRecord.data['synced'], isTrue,
           reason: "The local record should be marked as synced.");
     });
 
