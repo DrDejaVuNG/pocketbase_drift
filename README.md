@@ -283,6 +283,116 @@ The `MaintenanceResult` provides details on what was cleaned up:
 
 **Important**: Maintenance only deletes **synced** data. Unsynced local changes, local-only records (`noSync: true`), and pending deletions are **never** removed, ensuring you never lose data that hasn't been synced to the server.
 
+## Advanced: Direct Database Access
+
+For advanced use cases like custom SQL queries, complex joins, or direct table inspection, you can access the underlying Drift database directly via `client.db`.
+
+### Database Schema
+
+All PocketBase records are stored in a generic `services` table with the following structure:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT | Record ID (PocketBase ID) |
+| `service` | TEXT | Collection name (e.g., "posts", "users") |
+| `data` | TEXT | JSON-encoded record data |
+| `created` | TEXT | ISO 8601 timestamp |
+| `updated` | TEXT | ISO 8601 timestamp |
+
+**Primary Key**: `(id, service)`
+
+Additional tables:
+- `blob_files` - Cached file/image blobs
+- `cached_responses` - Cached API responses for custom routes
+
+### Running Raw SQL Queries
+
+Use `customSelect` for queries that return data:
+
+```dart
+// Simple query - get all posts
+final results = await client.db.customSelect(
+  "SELECT * FROM services WHERE service = 'posts'",
+).get();
+
+// Query with JSON extraction
+final posts = await client.db.customSelect('''
+  SELECT 
+    id,
+    json_extract(data, '\$.title') as title,
+    json_extract(data, '\$.author') as author,
+    created
+  FROM services 
+  WHERE service = 'posts'
+    AND json_extract(data, '\$.published') = 1
+  ORDER BY created DESC
+  LIMIT 10
+''').get();
+
+// Access results
+for (final row in posts) {
+  print('${row.read<String>('title')} by ${row.read<String>('author')}');
+}
+```
+
+### Joining Data Across Collections
+
+Since all collections share the same table, you can join them using SQL:
+
+```dart
+final results = await client.db.customSelect('''
+  SELECT 
+    p.id as post_id,
+    json_extract(p.data, '\$.title') as post_title,
+    json_extract(u.data, '\$.name') as author_name
+  FROM services p
+  JOIN services u 
+    ON json_extract(p.data, '\$.author') = u.id 
+    AND u.service = 'users'
+  WHERE p.service = 'posts'
+''').get();
+```
+
+### Reactive Streams with Raw SQL
+
+Use `.watch()` instead of `.get()` for reactive updates:
+
+```dart
+// Stream that updates when data changes
+final stream = client.db.customSelect(
+  "SELECT * FROM services WHERE service = 'posts'",
+  readsFrom: {client.db.services}, // Required for reactivity
+).watch();
+
+stream.listen((rows) {
+  print('Posts updated: ${rows.length} items');
+});
+```
+
+### Executing Raw Statements
+
+For INSERT, UPDATE, DELETE operations, use `customStatement`:
+
+```dart
+await client.db.customStatement(
+  "DELETE FROM services WHERE service = 'temp_data'",
+);
+```
+
+### Using the Built-in Query Builder
+
+For simpler queries, you can also use the built-in `$query` method which handles JSON extraction automatically:
+
+```dart
+// Uses PocketBase-style filter syntax internally
+final posts = await client.db.$query(
+  'posts',
+  filter: "published = true && author != ''",
+  sort: '-created',
+  limit: 10,
+).get();
+```
+
 ## TODO
 
 
