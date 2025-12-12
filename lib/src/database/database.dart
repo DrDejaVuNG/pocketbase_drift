@@ -194,8 +194,9 @@ class DataBase extends _$DataBase {
       // 1. COLLECT all relation data and IDs needed
       final relationsToFetch =
           <String, Set<String>>{}; // eg: 'relation_field' -> {'id1', 'id2'}
-      final relationMeta =
-          <String, ({String collectionName, String nestedExpand})>{};
+      // Track metadata including whether this is a single relation (maxSelect == 1)
+      final relationMeta = <String,
+          ({String collectionName, String nestedExpand, bool isSingle})>{};
 
       for (final target in targets) {
         final levels = target.split('.');
@@ -215,9 +216,14 @@ class DataBase extends _$DataBase {
         final targetCollection =
             allCollections.firstWhere((c) => c.id == targetCollectionId);
 
+        // Determine if this is a single relation (maxSelect == 1)
+        final maxSelect = schemaField.data['maxSelect'];
+        final isSingle = maxSelect == 1;
+
         relationMeta[targetField] = (
           collectionName: targetCollection.name,
           nestedExpand: levels.length > 1 ? levels.skip(1).join('.') : '',
+          isSingle: isSingle,
         );
         relationsToFetch.putIfAbsent(targetField, () => <String>{});
 
@@ -264,12 +270,14 @@ class DataBase extends _$DataBase {
       }
 
       // 3. ATTACH fetched records to the main records
+      // Use dynamic type for expand map to support both single objects and lists
       for (final record in records) {
-        record['expand'] = <String, List<Map<String, dynamic>>>{};
+        record['expand'] = <String, dynamic>{};
         for (final relationName in targets.map((t) => t.split('.').first)) {
           final results = <Map<String, dynamic>>[];
           final dynamic relatedIdsRaw = record[relationName];
           final fetchedData = fetchedRelations[relationName] ?? {};
+          final meta = relationMeta[relationName];
 
           if (relatedIdsRaw is String && relatedIdsRaw.isNotEmpty) {
             if (fetchedData.containsKey(relatedIdsRaw)) {
@@ -284,7 +292,16 @@ class DataBase extends _$DataBase {
               }
             }
           }
-          record['expand'][relationName] = results;
+
+          // Match PocketBase SDK behavior:
+          // - Single relations (maxSelect == 1): return the object directly or null
+          // - Multi relations: return the list
+          if (meta != null && meta.isSingle) {
+            record['expand'][relationName] =
+                results.isEmpty ? null : results.first;
+          } else {
+            record['expand'][relationName] = results;
+          }
         }
       }
 

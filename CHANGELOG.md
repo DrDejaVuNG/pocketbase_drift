@@ -1,3 +1,33 @@
+## 0.3.6
+
+**BREAKING CHANGE**: Local relation expansion now matches PocketBase SDK behavior.
+
+### Breaking Changes
+
+- **Single relations now return objects directly** - Previously, all expanded relations were wrapped in a list, requiring index access (e.g., `expand.author.0.name`). Now, single relations (`maxSelect == 1`) return the object directly, matching the official PocketBase SDK behavior:
+  - **Before**: `record.get<String>('expand.author.0.name')`
+  - **After**: `record.get<String>('expand.author.name')`
+  - Multi relations (`maxSelect > 1`) still return lists and require index access
+
+### Migration Guide
+
+If you were accessing single relation expands with `.0` index, remove the index:
+
+```dart
+// Before (0.3.5 and earlier)
+final authorName = post.get<String>('expand.author.0.name');
+final author = post.get<RecordModel>('expand.author.0');
+
+// After (0.3.6+)
+final authorName = post.get<String>('expand.author.name');
+final author = post.get<RecordModel>('expand.author');
+```
+
+Multi-relation access remains unchanged:
+```dart
+final firstTag = post.get<String>('expand.tags.0.name');  // Still uses index
+```
+
 ## 0.3.5
 
 ### Documentation

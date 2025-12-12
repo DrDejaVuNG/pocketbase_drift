@@ -244,10 +244,9 @@ void main() {
         expect(result, isNotNull);
         expect(result!['plain_text'], 'main_ultimate_1');
         expect(result['expand'], isNotNull);
+        // Single relations (maxSelect == 1) are now returned as objects directly
         expect(result['expand']['relation_single'], isNotNull);
-        expect(result['expand']['relation_single'].length, 1);
-        expect(
-            result['expand']['relation_single'][0]['name'], 'related_todo_1');
+        expect(result['expand']['relation_single']['name'], 'related_todo_1');
       });
 
       test('indirect (nested) relation', () async {
@@ -277,28 +276,25 @@ void main() {
 
         expect(result['expand'], isNotNull,
             reason: "Top-level expand map is missing");
+        // Single relations are now returned as objects directly (not lists)
         final expandedTodoRelation =
-            result['expand']['relation_single'] as List?;
+            result['expand']['relation_single'] as Map<String, dynamic>?;
         expect(expandedTodoRelation, isNotNull,
             reason: "First-level relation 'relation_single' was not expanded");
-        expect(expandedTodoRelation!.length, 1,
-            reason: "Expected one expanded todo item");
 
-        final nestedTodo = expandedTodoRelation.first;
-        expect(nestedTodo['name'], 'Todo with User Relation');
+        expect(expandedTodoRelation!['name'], 'Todo with User Relation');
 
-        expect(nestedTodo['expand'], isNotNull,
+        expect(expandedTodoRelation['expand'], isNotNull,
             reason: "Nested expand map on the 'todo' item is missing");
-        final expandedUserRelation = nestedTodo['expand']['user'] as List?;
+        // Nested single relation is also returned as object directly
+        final expandedUserRelation =
+            expandedTodoRelation['expand']['user'] as Map<String, dynamic>?;
         expect(expandedUserRelation, isNotNull,
             reason: "Second-level relation 'user' was not expanded");
-        expect(expandedUserRelation!.length, 1,
-            reason: "Expected one expanded user item");
 
-        final nestedUser = expandedUserRelation.first;
-        expect(nestedUser['name'], 'Nested User',
+        expect(expandedUserRelation!['name'], 'Nested User',
             reason: "The deeply nested user data is incorrect");
-        expect(nestedUser['id'], user['id']);
+        expect(expandedUserRelation['id'], user['id']);
       });
 
       test('multi relation with multiple related items', () async {
