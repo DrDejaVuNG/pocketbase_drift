@@ -492,6 +492,10 @@ class DataBase extends _$DataBase {
       onConflict: DoUpdate((old) => item),
     );
 
+    // Cache any expanded related records to their respective collections
+    // This ensures they're available when those collections are queried directly
+    await _cacheExpandedRecords(service, data);
+
     // Manually construct the final map, which is what `parseRow` and `$query`
     // would have done. This is more efficient and avoids the race condition.
     final finalData = <String, dynamic>{
@@ -501,6 +505,109 @@ class DataBase extends _$DataBase {
       'updated': insertedService.updated,
     };
     return finalData;
+  }
+
+  /// Recursively cache expanded records to their respective collection tables.
+  /// This ensures that when a record is fetched with expand, the related records
+  /// are also stored in the local database and can be queried independently.
+  Future<void> _cacheExpandedRecords(
+    String parentService,
+    Map<String, dynamic> data,
+  ) async {
+    final expand = data['expand'];
+
+    if (expand == null || expand is! Map<String, dynamic>) return;
+
+    // Get the schema for the parent collection to find relation field metadata
+    final collection =
+        await $collections(service: parentService).getSingleOrNull();
+    if (collection == null) {
+      return;
+    }
+
+    // Build a map of relation field names to their target collection IDs
+    final relationFields = <String, String>{};
+    for (final field in collection.fields) {
+      if (field.type == 'relation') {
+        final targetCollectionId = field.data['collectionId'] as String?;
+        if (targetCollectionId != null) {
+          relationFields[field.name] = targetCollectionId;
+        }
+      }
+    }
+
+    // Get all collections to resolve collection IDs to names
+    final allCollections = await $collections().get();
+    final collectionIdToName = {
+      for (final c in allCollections) c.id: c.name,
+    };
+
+    // Process each expanded relation
+    for (final entry in expand.entries) {
+      final relationName = entry.key;
+      final expandedData = entry.value;
+
+      // Find the target collection for this relation
+      final targetCollectionId = relationFields[relationName];
+      if (targetCollectionId == null) continue;
+
+      final targetCollectionName = collectionIdToName[targetCollectionId];
+      if (targetCollectionName == null) continue;
+
+      // Handle both single object and list of objects
+      final recordsToCache = <Map<String, dynamic>>[];
+      if (expandedData is Map<String, dynamic>) {
+        recordsToCache.add(expandedData);
+      } else if (expandedData is List) {
+        for (final item in expandedData) {
+          if (item is Map<String, dynamic>) {
+            recordsToCache.add(item);
+          }
+        }
+      }
+
+      // Cache each expanded record to its collection
+      for (final record in recordsToCache) {
+        if (record['id'] == null) continue;
+
+        // Remove the expand field before saving to avoid storing stale expand data
+        // The expand will be re-computed when the record is queried with expand
+        final recordToSave = Map<String, dynamic>.from(record);
+        recordToSave.remove('expand');
+
+        try {
+          // Use internal insert to avoid validation (the data came from server)
+          final recordId = recordToSave['id'] as String?;
+          if (recordId == null) continue;
+
+          String dateVal(String key) {
+            final value = recordToSave[key];
+            if (value is String) return value;
+            return DateTime.now().toIso8601String();
+          }
+
+          final item = ServicesCompanion.insert(
+            id: Value(recordId),
+            service: targetCollectionName,
+            data: recordToSave,
+            created: Value(dateVal('created')),
+            updated: Value(dateVal('updated')),
+          );
+
+          await into(services).insert(
+            item,
+            onConflict: DoUpdate((old) => item),
+          );
+
+          // Recursively cache any nested expanded records
+          if (record['expand'] != null) {
+            await _cacheExpandedRecords(targetCollectionName, record);
+          }
+        } catch (e) {
+          logger.fine('Error caching expanded record: $e');
+        }
+      }
+    }
   }
 
   Future<Map<String, dynamic>> $update(
@@ -807,6 +914,14 @@ class DataBase extends _$DataBase {
         b.insert(services, row, onConflict: DoUpdate((old) => row));
       }
     });
+
+    // Cache any expanded related records to their respective collections
+    // This ensures they're available when those collections are queried directly
+    for (final item in recordsToWrite) {
+      if (item['expand'] != null) {
+        await _cacheExpandedRecords(service, item);
+      }
+    }
   }
 
   /// Synchronizes local database with server data, including deletion of stale records.

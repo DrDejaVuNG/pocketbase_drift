@@ -1,3 +1,15 @@
+## 0.3.7
+
+### Bug Fixes
+
+- **Fixed nested expanded records not being cached** - When fetching records with nested expand, the related records are now automatically cached to their respective collection tables. This enables local expand to work correctly when those collections are later queried independently.
+  - Previously, `mergeLocal` (used by `getFullList`) bypassed the caching logic, causing expanded records to be missing from the local cache.
+  - The fix also applies recursively, so deeply nested expands are properly cached at all levels.
+
+### Tests
+
+- Added `expand_cache_test.dart` with 4 tests validating nested expanded record caching behavior.
+
 ## 0.3.6
 
 **BREAKING CHANGE**: Local relation expansion now matches PocketBase SDK behavior.
