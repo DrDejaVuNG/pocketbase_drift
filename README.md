@@ -353,6 +353,28 @@ The `MaintenanceResult` provides details on what was cleaned up:
 
 **Important**: Maintenance only deletes **synced** data. Unsynced local changes, local-only records (`noSync: true`), and pending deletions are **never** removed, ensuring you never lose data that hasn't been synced to the server.
 
+## Authentication Persistence
+
+The library provides a specialized `$AuthStore` that integrates with `shared_preferences` to persist authentication state across app sessions.
+
+By default, when a user logs out (or the auth store is cleared), all local cached data is deleted for security. You can change this behavior if you want to preserve offline data between sessions:
+
+```dart
+final prefs = await SharedPreferences.getInstance();
+
+// Create auth store that preserves data on logout
+final authStore = $AuthStore.prefs(
+  prefs, 
+  'pb_auth', 
+  clearOnLogout: false, // Default is true
+);
+
+final client = $PocketBase.database(
+  'https://example.pocketbase.io',
+  authStore: authStore,
+);
+```
+
 ## Advanced: Direct Database Access
 
 For advanced use cases like custom SQL queries, complex joins, or direct table inspection, you can access the underlying Drift database directly via `client.db`.

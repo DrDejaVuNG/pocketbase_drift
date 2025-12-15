@@ -7,20 +7,29 @@ class $AuthStore extends AsyncAuthStore {
     required super.save,
     super.initial,
     super.clear,
+    this.clearOnLogout = true,
   });
 
   DataBase? db;
+  final bool clearOnLogout;
 
   @override
   void clear() {
     super.clear();
-    db?.clearAllData();
+    if (clearOnLogout) {
+      db?.clearAllData();
+    }
   }
 
-  factory $AuthStore.prefs(SharedPreferences prefs, String key) {
+  factory $AuthStore.prefs(
+    SharedPreferences prefs,
+    String key, {
+    bool clearOnLogout = true,
+  }) {
     return $AuthStore(
       save: (data) async => await prefs.setString(key, data),
       initial: prefs.getString(key),
+      clearOnLogout: clearOnLogout,
     );
   }
 }
