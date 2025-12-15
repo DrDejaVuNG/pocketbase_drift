@@ -1,3 +1,10 @@
+## 0.3.8
+
+### New Features
+
+- **Nullable Cache TTL** - The `cacheTtl` parameter in `$PocketBase.database()` is now nullable. Setting it to `null` disables automatic cache cleanup, allowing data to be persisted indefinitely.
+- **Support for `updatedAt`/`createdAt` fields** - Added automatic fallback support for PocketBase applications that use `updatedAt` and `createdAt` field names instead of the default `updated` and `created`. This ensures that cache TTL cleanup, version comparisons, and local data storage work correctly regardless of the timestamp naming convention used.
+
 ## 0.3.7
 
 ### Bug Fixes

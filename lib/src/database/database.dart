@@ -20,6 +20,30 @@ class DataBase extends _$DataBase {
 
   late final Logger logger;
 
+  /// Extracts the 'updated' timestamp from a record, with fallback to 'updatedAt'.
+  ///
+  /// Some PocketBase applications use 'updatedAt' instead of the default 'updated'
+  /// field name. This helper ensures compatibility with both conventions.
+  static String? _getUpdatedTimestamp(Map<String, dynamic> data) {
+    final updated = data['updated'];
+    if (updated is String && updated.isNotEmpty) return updated;
+    final updatedAt = data['updatedAt'];
+    if (updatedAt is String && updatedAt.isNotEmpty) return updatedAt;
+    return null;
+  }
+
+  /// Extracts the 'created' timestamp from a record, with fallback to 'createdAt'.
+  ///
+  /// Some PocketBase applications use 'createdAt' instead of the default 'created'
+  /// field name. This helper ensures compatibility with both conventions.
+  static String? _getCreatedTimestamp(Map<String, dynamic> data) {
+    final created = data['created'];
+    if (created is String && created.isNotEmpty) return created;
+    final createdAt = data['createdAt'];
+    if (createdAt is String && createdAt.isNotEmpty) return createdAt;
+    return null;
+  }
+
   @override
   int get schemaVersion => 3;
 
@@ -468,14 +492,10 @@ class DataBase extends _$DataBase {
       validateData(collection, mutableData);
     }
 
-    String date(String key) {
-      final value = data[key];
-      if (value is String) return value;
-      return DateTime.now().toIso8601String();
-    }
-
-    final String created = date('created');
-    final String updated = date('updated');
+    final String created =
+        _getCreatedTimestamp(data) ?? DateTime.now().toIso8601String();
+    final String updated =
+        _getUpdatedTimestamp(data) ?? DateTime.now().toIso8601String();
 
     final item = ServicesCompanion.insert(
       id: id != null ? Value(id) : const Value.absent(),
@@ -580,18 +600,17 @@ class DataBase extends _$DataBase {
           final recordId = recordToSave['id'] as String?;
           if (recordId == null) continue;
 
-          String dateVal(String key) {
-            final value = recordToSave[key];
-            if (value is String) return value;
-            return DateTime.now().toIso8601String();
-          }
+          final created = _getCreatedTimestamp(recordToSave) ??
+              DateTime.now().toIso8601String();
+          final updated = _getUpdatedTimestamp(recordToSave) ??
+              DateTime.now().toIso8601String();
 
           final item = ServicesCompanion.insert(
             id: Value(recordId),
             service: targetCollectionName,
             data: recordToSave,
-            created: Value(dateVal('created')),
-            updated: Value(dateVal('updated')),
+            created: Value(created),
+            updated: Value(updated),
           );
 
           await into(services).insert(
@@ -743,8 +762,8 @@ class DataBase extends _$DataBase {
           continue;
         }
 
-        final createdStr = item['created'] as String?;
-        final updatedStr = item['updated'] as String?;
+        final createdStr = _getCreatedTimestamp(item);
+        final updatedStr = _getUpdatedTimestamp(item);
 
         final row = ServicesCompanion.insert(
           id: Value(id),
@@ -866,8 +885,10 @@ class DataBase extends _$DataBase {
         recordsToWrite.add(item);
       } else {
         // It's an existing record, check if it's updated.
-        final networkUpdated =
-            DateTime.tryParse(item['updated'] as String? ?? '');
+        final networkUpdatedStr = _getUpdatedTimestamp(item);
+        final networkUpdated = networkUpdatedStr != null
+            ? DateTime.tryParse(networkUpdatedStr)
+            : null;
         final localUpdated =
             DateTime.tryParse(localRecord['updated'] as String? ?? '');
 
@@ -895,8 +916,8 @@ class DataBase extends _$DataBase {
     await batch((b) {
       for (final item in recordsToWrite) {
         final id = item['id'] as String;
-        final createdStr = item['created'] as String?;
-        final updatedStr = item['updated'] as String?;
+        final createdStr = _getCreatedTimestamp(item);
+        final updatedStr = _getUpdatedTimestamp(item);
 
         final row = ServicesCompanion.insert(
           id: Value(id),

@@ -324,6 +324,12 @@ final client = $PocketBase.database(
   'https://example.pocketbase.io',
   cacheTtl: Duration(days: 30), // Custom TTL: 30 days
 );
+
+// Or disable automatic cleanup (keep data forever)
+final clientNoExpiry = $PocketBase.database(
+  'https://example.pocketbase.io',
+  cacheTtl: null,
+);
 ```
 
 #### Running Maintenance

@@ -321,5 +321,86 @@ void main() {
       // All old records should be deleted
       expect(deleted, 3);
     });
+
+    test('cleanupExpiredRecords works with updatedAt field', () async {
+      final oldDate = DateTime.now().subtract(const Duration(days: 90));
+      final recentDate = DateTime.now().subtract(const Duration(days: 30));
+
+      // Create an old record using updatedAt (not updated) - should be deleted
+      await client.db.$create('todo', {
+        'id': 'old_with_updatedAt',
+        'name': 'Old With UpdatedAt',
+        'synced': true,
+        'deleted': false,
+        'updatedAt': oldDate.toIso8601String(),
+      });
+
+      // Create a recent record using updatedAt - should NOT be deleted
+      await client.db.$create('todo', {
+        'id': 'recent_with_updatedAt',
+        'name': 'Recent With UpdatedAt',
+        'synced': true,
+        'deleted': false,
+        'updatedAt': recentDate.toIso8601String(),
+      });
+
+      // Run maintenance with 60-day TTL
+      final cutoff = DateTime.now().subtract(const Duration(days: 60));
+      final deleted = await client.db.cleanupExpiredRecords(cutoffDate: cutoff);
+
+      expect(deleted, 1);
+
+      // Verify old record is deleted
+      final oldRecord = await todoService.getOneOrNull(
+        'old_with_updatedAt',
+        requestPolicy: RequestPolicy.cacheOnly,
+      );
+      expect(oldRecord, isNull);
+
+      // Verify recent record still exists
+      final recentRecord = await todoService.getOneOrNull(
+        'recent_with_updatedAt',
+        requestPolicy: RequestPolicy.cacheOnly,
+      );
+      expect(recentRecord, isNotNull);
+    });
+
+    test('runMaintenance does nothing when cacheTtl is null', () async {
+      // Create a client with NO TTL (null)
+      final noTtlClient = $PocketBase.database(
+        url,
+        connection: DatabaseConnection(NativeDatabase.memory()),
+        cacheTtl: null, // Disabled
+      );
+
+      await noTtlClient.db.setSchema(
+        collections.map((e) => e.toJson()).toList(),
+      );
+
+      final oldDate = DateTime.now().subtract(const Duration(days: 365));
+
+      // Create a very old synced record
+      await noTtlClient.db.$create('todo', {
+        'id': 'ancient_record',
+        'name': 'Ancient Record',
+        'synced': true,
+        'deleted': false,
+        'updated': oldDate.toIso8601String(),
+      });
+
+      // Run maintenance (should skip)
+      final result = await noTtlClient.runMaintenance();
+
+      expect(result.totalDeleted, 0);
+
+      // Verify record still exists
+      final record = await noTtlClient.collection('todo').getOneOrNull(
+            'ancient_record',
+            requestPolicy: RequestPolicy.cacheOnly,
+          );
+      expect(record, isNotNull);
+
+      await noTtlClient.db.clearAllData();
+    });
   });
 }

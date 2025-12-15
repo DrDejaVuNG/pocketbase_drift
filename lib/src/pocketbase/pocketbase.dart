@@ -29,7 +29,7 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
     $AuthStore? authStore,
     DatabaseConnection? connection,
     String dbName = 'pb_drift.db',
-    Duration cacheTtl = const Duration(days: 60),
+    Duration? cacheTtl = const Duration(days: 60),
     Client Function()? httpClientFactory,
   }) {
     final db = DataBase(
@@ -53,7 +53,9 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
   /// The time-to-live duration for cached records and responses.
   /// Records and responses older than this will be cleaned up when
   /// [runMaintenance] is called. Default is 60 days.
-  final Duration cacheTtl;
+  ///
+  /// If set to `null`, automatic cleanup is disabled and data is kept indefinitely.
+  final Duration? cacheTtl;
 
   set logging(bool enable) {
     hierarchicalLoggingEnabled = true;
@@ -92,6 +94,16 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
   /// ```
   Future<MaintenanceResult> runMaintenance({Duration? ttl}) async {
     final effectiveTtl = ttl ?? cacheTtl;
+
+    if (effectiveTtl == null) {
+      logger.info('Maintenance skipped: TTL is disabled (null)');
+      return const MaintenanceResult(
+        deletedRecords: 0,
+        deletedResponses: 0,
+        deletedFiles: 0,
+      );
+    }
+
     final cutoffDate = DateTime.now().subtract(effectiveTtl);
 
     logger.info('Running maintenance (TTL: ${effectiveTtl.inDays} days)...');
