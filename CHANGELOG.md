@@ -11,7 +11,7 @@
 - **Fixed Connectivity & Cache Issues on Re-login** - Resolved a critical issue where logging out and back in would cause connectivity to report incorrectly and cached streams to stop responding.
   - `ConnectivityService` is now a true singleton that is never disposed, matching the behavior of `connectivity_plus`'s global `Connectivity()` singleton. This prevents instability when recreating client instances.
   - Simplified database connection by removing manual isolate spawning, using Drift's built-in connection handling instead.
-  - **Note for developers**: If using Riverpod, invalidate your `pocketBaseProvider` after login to ensure all dependent stream providers are refreshed with the new client instance.
+  - **Note for developers**: If using Riverpod, invalidate your `pocketBaseProvider` after logout to ensure all dependent providers are refreshed with the new client instance.
 
 ## 0.3.7
 
