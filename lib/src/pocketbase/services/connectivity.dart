@@ -4,21 +4,22 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logging/logging.dart';
 
 /// A service that monitors the device's network connectivity status.
+///
+/// This is a singleton because `connectivity_plus`'s `Connectivity()` is also
+/// a global singleton. Disposing and recreating wrappers around it causes
+/// instability in connectivity detection. Each `$PocketBase` client manages
+/// its own subscription to this singleton's [statusStream].
 class ConnectivityService {
   ConnectivityService._() {
     _logger = Logger('ConnectivityService');
     _subscription = Connectivity().onConnectivityChanged.listen(_updateStatus);
-    // Get the initial status.
-    checkConnectivity();
   }
 
-  // Singleton instance
+  // Singleton instance - lives for the app's lifetime
   static final ConnectivityService _instance = ConnectivityService._();
 
-  // Factory constructor to return the singleton instance
-  factory ConnectivityService() {
-    return _instance;
-  }
+  /// Factory constructor returns the singleton instance.
+  factory ConnectivityService() => _instance;
 
   final _statusController = StreamController<bool>.broadcast();
   late StreamSubscription<List<ConnectivityResult>> _subscription;
@@ -66,12 +67,5 @@ class ConnectivityService {
     _logger.info('Resetting connectivity stream subscription.');
     _subscription.cancel();
     _subscription = Connectivity().onConnectivityChanged.listen(_updateStatus);
-    // Re-check immediately after resetting.
-    checkConnectivity();
-  }
-
-  void dispose() {
-    _subscription.cancel();
-    _statusController.close();
   }
 }

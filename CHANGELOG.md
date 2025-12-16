@@ -6,6 +6,13 @@
 - **Support for `updatedAt`/`createdAt` fields** - Added automatic fallback support for PocketBase applications that use `updatedAt` and `createdAt` field names instead of the default `updated` and `created`. This ensures that cache TTL cleanup, version comparisons, and local data storage work correctly regardless of the timestamp naming convention used.
 - **Configurable Logout Cleanup** - Added `clearOnLogout` parameter to `$AuthStore` (default: `true`). Developers can now set this to `false` to preserve local data when the user logs out, improving the experience for offline-first applications where re-fetching data might be expensive.
 
+### Bug Fixes
+
+- **Fixed Connectivity & Cache Issues on Re-login** - Resolved a critical issue where logging out and back in would cause connectivity to report incorrectly and cached streams to stop responding.
+  - `ConnectivityService` is now a true singleton that is never disposed, matching the behavior of `connectivity_plus`'s global `Connectivity()` singleton. This prevents instability when recreating client instances.
+  - Simplified database connection by removing manual isolate spawning, using Drift's built-in connection handling instead.
+  - **Note for developers**: If using Riverpod, invalidate your `pocketBaseProvider` after login to ensure all dependent stream providers are refreshed with the new client instance.
+
 ## 0.3.7
 
 ### Bug Fixes

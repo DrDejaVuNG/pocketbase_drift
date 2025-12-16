@@ -378,7 +378,7 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
   void close() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
-    connectivity.dispose();
+    db.close();
     super.close();
   }
 
