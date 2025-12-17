@@ -4,6 +4,47 @@ A powerful, offline-first Flutter client for [PocketBase](https://pocketbase.io)
 
 This library extends the official PocketBase Dart SDK to provide a seamless offline-first experience. It automatically caches data from your PocketBase instance into a local SQLite database, allowing your app to remain fully functional even without a network connection. Changes made while offline are queued and automatically retried when connectivity is restored.
 
+<details>
+<summary><strong>📑 Table of Contents</strong></summary>
+
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [1. Add Dependencies](#1-add-dependencies)
+  - [2. Initialize the Client](#2-initialize-the-client)
+  - [3. Cache the Database Schema (Enable Offline Records)](#3-cache-the-database-schema-enable-offline-records)
+  - [4. Web Setup](#4-web-setup)
+- [Core Concepts](#core-concepts)
+  - [RequestPolicy](#requestpolicy)
+    - [For Read Operations (GET)](#for-read-operations-get)
+    - [For Write Operations (CREATE/UPDATE/DELETE)](#for-write-operations-createupdatedelete)
+  - [Choosing the Right Policy](#choosing-the-right-policy)
+  - [Offline Support & Sync](#offline-support--sync)
+- [Usage Examples](#usage-examples)
+  - [Fetching Records](#fetching-records)
+  - [Expanding Relations](#expanding-relations)
+    - [Single Relations (maxSelect = 1)](#single-relations-maxselect--1)
+    - [Multi Relations (maxSelect > 1)](#multi-relations-maxselect--1)
+    - [Nested (Multi-Level) Expansion](#nested-multi-level-expansion)
+  - [Creating and Updating Records](#creating-and-updating-records)
+  - [Local Full-Text Search](#local-full-text-search)
+  - [File Handling](#file-handling)
+  - [Custom API Route Caching](#custom-api-route-caching)
+  - [Cache TTL & Maintenance](#cache-ttl--maintenance)
+    - [Configuration](#configuration)
+    - [Running Maintenance](#running-maintenance)
+- [Authentication Persistence](#authentication-persistence)
+- [Advanced: Direct Database Access](#advanced-direct-database-access)
+  - [Database Schema](#database-schema)
+  - [Running Raw SQL Queries](#running-raw-sql-queries)
+  - [Joining Data Across Collections](#joining-data-across-collections)
+  - [Reactive Streams with Raw SQL](#reactive-streams-with-raw-sql)
+  - [Executing Raw Statements](#executing-raw-statements)
+  - [Using the Built-in Query Builder](#using-the-built-in-query-builder)
+- [TODO](#todo)
+- [Credits](#credits)
+
+</details>
+
 ## Features
 
 *   **Offline-First Architecture**: Read, create, update, and delete records even without a network connection.
