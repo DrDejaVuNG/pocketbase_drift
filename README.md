@@ -72,7 +72,7 @@ Add the following packages to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pocketbase_drift: ^0.3.4 # Use the latest version
+  pocketbase_drift: ^0.3.9 # Use the latest version
 ```
 
 ### 2. Initialize the Client
