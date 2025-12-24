@@ -1,3 +1,13 @@
+## 0.3.9
+
+### New Features
+
+- **Batch Requests with Offline Support** - Added `$createBatch()` method for executing transactional batch operations with full offline-first support.
+  - Queue multiple create, update, delete, and upsert operations across collections
+  - Execute all operations in a single HTTP request to PocketBase
+  - Full `RequestPolicy` support for controlling online/offline behavior
+  - When offline or on failure with `cacheAndNetwork`, operations are stored locally and retried as individual operations when connectivity is restored
+
 ## 0.3.8
 
 ### New Features

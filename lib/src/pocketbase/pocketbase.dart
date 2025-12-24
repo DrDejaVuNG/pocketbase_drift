@@ -367,6 +367,31 @@ class $PocketBase extends PocketBase with WidgetsBindingObserver {
     return db.search(query, service: service);
   }
 
+  /// Creates a new batch service for executing transactional batch operations.
+  ///
+  /// Batch requests allow you to send multiple create, update, delete, and upsert
+  /// operations in a single HTTP request to PocketBase. This is more efficient
+  /// than sending individual requests and ensures atomicity on the server side.
+  ///
+  /// With [RequestPolicy.cacheAndNetwork] (used when calling `send()`), if the
+  /// batch fails due to network issues, all operations are stored locally and
+  /// will be retried as individual operations when connectivity is restored.
+  ///
+  /// Example:
+  /// ```dart
+  /// final batch = client.$createBatch();
+  ///
+  /// batch.collection('posts').create(body: {'title': 'Hello World'});
+  /// batch.collection('posts').update('abc123', body: {'title': 'Updated'});
+  /// batch.collection('comments').delete('def456');
+  ///
+  /// final results = await batch.send();
+  /// for (final result in results) {
+  ///   print('${result.collection}: ${result.isSuccess ? 'OK' : 'Failed'}');
+  /// }
+  /// ```
+  $BatchService $createBatch() => $BatchService(this);
+
   @override
   $CollectionService get collections => $CollectionService(this);
 

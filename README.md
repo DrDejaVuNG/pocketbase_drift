@@ -26,6 +26,7 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
     - [Multi Relations (maxSelect > 1)](#multi-relations-maxselect--1)
     - [Nested (Multi-Level) Expansion](#nested-multi-level-expansion)
   - [Creating and Updating Records](#creating-and-updating-records)
+  - [Batch Requests](#batch-requests)
   - [Local Full-Text Search](#local-full-text-search)
   - [File Handling](#file-handling)
   - [Custom API Route Caching](#custom-api-route-caching)
@@ -58,6 +59,7 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
     *   **Pagination**: `limit` and `offset` are fully supported for local data.
 *   **Relation Expansion**: Support for expanding single and multi-level relations (e.g., `post.author`) directly from the local cache, with full compatibility for the PocketBase SDK's `record.get<T>()` dot-notation path access.
 *   **Full-Text Search**: Integrated Full-Text Search (FTS5) for performing fast, local searches across all your cached record data.
+*   **Batch Requests**: Execute multiple create, update, delete, and upsert operations in a single transactional request with offline support.
 *   **Authentication Persistence**: User authentication state is persisted locally using `shared_preferences`, keeping users logged in across app sessions.
 *   **Cross-Platform Support**: Works across all Flutter-supported platforms, including mobile (iOS, Android), web, and desktop (macOS, Windows, Linux).
 *   **File & Image Caching**: Includes a `PocketBaseImageProvider` that caches images in the local database for offline display.
@@ -289,6 +291,50 @@ await client.collection('posts').update(newRecord.id, body: {
   'content': 'The content has been updated.',
 });
 ```
+
+### Batch Requests
+
+Batch requests allow you to execute multiple create, update, delete, and upsert operations in a single transactional HTTP request. This is more efficient than individual requests and ensures atomicity on the server.
+
+```dart
+// Create a batch instance
+final batch = client.$createBatch();
+
+// Queue operations across multiple collections
+batch.collection('posts').create(body: {
+  'title': 'New Post',
+  'content': 'Created in a batch',
+});
+
+batch.collection('posts').update('abc123', body: {
+  'title': 'Updated Title',
+});
+
+batch.collection('comments').delete('def456');
+
+// Upsert: creates if ID doesn't exist, updates if it does
+batch.collection('tags').upsert(body: {
+  'id': 'tag_flutter',
+  'name': 'Flutter',
+});
+
+// Send all operations in a single request
+final results = await batch.send(
+  requestPolicy: RequestPolicy.cacheAndNetwork,
+);
+
+// Check results
+for (final result in results) {
+  if (result.isSuccess) {
+    print('${result.collection}: Success');
+    final record = result.record; // Access the returned RecordModel
+  } else {
+    print('${result.collection}: Failed with status ${result.status}');
+  }
+}
+```
+
+**Offline Behavior**: When using `RequestPolicy.cacheAndNetwork` (default) and the batch request fails due to network issues, all operations are stored locally and marked as pending. They will be retried as individual operations when connectivity is restored.
 
 ### Local Full-Text Search
 
@@ -540,6 +586,7 @@ final posts = await client.db.$query(
 -   [X] Add support for more complex query operators (e.g., ~ for LIKE/Contains)
 -   [X] More comprehensive test suite for edge cases
 -   [X] Cache TTL & maintenance for expired data cleanup
+-   [X] Batch requests with offline support
 
 ## Credits
  

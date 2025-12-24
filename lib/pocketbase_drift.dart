@@ -32,6 +32,7 @@ export 'src/pocketbase/services/records.dart';
 export 'src/pocketbase/services/collections.dart';
 export 'src/pocketbase/services/connectivity.dart';
 export 'src/pocketbase/services/backup.dart';
+export 'src/pocketbase/services/batch.dart';
 export 'src/pocketbase/services/files.dart';
 export 'src/pocketbase/services/health.dart';
 export 'src/pocketbase/services/logs.dart';
