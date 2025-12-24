@@ -31,6 +31,10 @@
   **Comment Stripping:**
   - Single-line comments (`// comment`) are now stripped before parsing
 
+### Bug Fixes
+
+- **Fixed date format mismatch causing incorrect sorting** - Resolved an issue where records stored via `setLocal` and `mergeLocal` (used by realtime subscriptions and batch syncs) would have their `created`/`updated` timestamps re-formatted, replacing the ISO 8601 `T` separator with a space. This caused string-based sorting to produce incorrect results when mixed with records stored via `$create` which preserved the original format. All methods now preserve the original timestamp format from the server. ([#8](https://github.com/DrDejaVuNG/pocketbase_drift/issues/8))
+
 ### Improvements
 
 - **Comprehensive test suite** - Added 49 new tests covering all filter parser features

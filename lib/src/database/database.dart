@@ -769,14 +769,8 @@ class DataBase extends _$DataBase {
           id: Value(id),
           data: item,
           service: service,
-          created: Value((createdStr != null
-                  ? DateTime.tryParse(createdStr)
-                  : DateTime.now())
-              ?.toIso8601String()),
-          updated: Value((updatedStr != null
-                  ? DateTime.tryParse(updatedStr)
-                  : DateTime.now())
-              ?.toIso8601String()),
+          created: Value(createdStr ?? DateTime.now().toIso8601String()),
+          updated: Value(updatedStr ?? DateTime.now().toIso8601String()),
         );
         b.insert(
           services,
@@ -923,14 +917,8 @@ class DataBase extends _$DataBase {
           id: Value(id),
           data: item,
           service: service,
-          created: Value((createdStr != null
-                  ? DateTime.tryParse(createdStr)
-                  : DateTime.now())
-              ?.toIso8601String()),
-          updated: Value((updatedStr != null
-                  ? DateTime.tryParse(updatedStr)
-                  : DateTime.now())
-              ?.toIso8601String()),
+          created: Value(createdStr ?? DateTime.now().toIso8601String()),
+          updated: Value(updatedStr ?? DateTime.now().toIso8601String()),
         );
         b.insert(services, row, onConflict: DoUpdate((old) => row));
       }
