@@ -1,3 +1,40 @@
+## 0.3.10
+
+### New Features
+
+- **Enhanced Filter Parser** - Major improvements to the filter parser for better PocketBase compatibility and new operators:
+
+  **Literal Type Support:**
+  - `null` literal - `field = null` now correctly translates to `IS NULL` in SQLite
+  - Boolean literals - `field = true` and `field = false` are now supported
+  - Numeric literals - Unquoted numbers like `score > 100` or `price = 19.99` are handled correctly
+
+  **"Any-of" Operators for Multi-Value Fields:**
+  - `?=`, `?!=` - Any element equals/not equals
+  - `?>`, `?>=`, `?<`, `?<=` - Any element comparison
+  - `?~`, `?!~` - Any element LIKE/NOT LIKE
+  - Example: `tags ?= "flutter"` checks if any tag equals "flutter"
+
+  **DateTime Macros:**
+  - `@now` - Current UTC datetime
+  - `@todayStart`, `@todayEnd` - Day boundaries
+  - `@yesterday`, `@tomorrow` - Relative dates
+  - `@monthStart`, `@monthEnd`, `@yearStart`, `@yearEnd` - Period boundaries
+  - `@second`, `@minute`, `@hour`, `@day`, `@weekday`, `@month`, `@year` - Time components
+  - Example: `created >= @todayStart && created <= @todayEnd`
+
+  **Field Modifiers:**
+  - `:lower` - Case-insensitive comparison using `LOWER()`
+  - `:length` - Array length check using `json_array_length()`
+  - Example: `name:lower = "john"` or `tags:length > 2`
+
+  **Comment Stripping:**
+  - Single-line comments (`// comment`) are now stripped before parsing
+
+### Improvements
+
+- **Comprehensive test suite** - Added 49 new tests covering all filter parser features
+
 ## 0.3.9
 
 ### New Features

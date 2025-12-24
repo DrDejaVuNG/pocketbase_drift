@@ -53,7 +53,12 @@ This library extends the official PocketBase Dart SDK to provide a seamless offl
 *   **Reactive Data & UI**: Build reactive user interfaces with streams that automatically update when underlying data changes, whether from a server push or a local mutation.
 *   **Local Caching with Drift**: All collections and records are cached in a local SQLite database, providing fast, offline access to your data.
 *   **Powerful Local Querying**: Full support for local querying, mirroring the PocketBase API. This includes:
-    *   **Filtering**: Complex `filter` strings are parsed into SQLite `WHERE` clauses.
+    *   **Filtering**: Complex `filter` strings are parsed into SQLite `WHERE` clauses, supporting:
+        - All standard operators (`=`, `!=`, `>`, `>=`, `<`, `<=`, `~`, `!~`)
+        - "Any-of" operators for multi-value fields (`?=`, `?!=`, `?>`, `?>=`, `?<`, `?<=`, `?~`, `?!~`)
+        - Literal types: strings, numbers, booleans (`true`/`false`), and `null`
+        - DateTime macros (`@now`, `@todayStart`, `@todayEnd`, `@yesterday`, `@tomorrow`, etc.)
+        - Field modifiers (`:lower` for case-insensitive, `:length` for array length)
     *   **Sorting**: Sort results by any field with `sort` (e.g., `-created,name`).
     *   **Field Selection**: Limit the returned fields with `fields` for improved performance.
     *   **Pagination**: `limit` and `offset` are fully supported for local data.
@@ -74,7 +79,7 @@ Add the following packages to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pocketbase_drift: ^0.3.9 # Use the latest version
+  pocketbase_drift: ^0.3.10 # Use the latest version
 ```
 
 ### 2. Initialize the Client

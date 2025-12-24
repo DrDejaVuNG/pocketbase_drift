@@ -414,7 +414,7 @@ void main() {
 
         final results = await db
             .$query(ultimate,
-                filter: "plain_text LIKE '%main_for_n+1%'",
+                filter: "plain_text ~ '%main_for_n+1%'",
                 expand: 'relation_multi')
             .get();
 

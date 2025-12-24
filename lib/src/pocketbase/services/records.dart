@@ -29,7 +29,7 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
     // AND are NOT marked as local-only.
     return client.db
         .$query(service,
-            filter: "synced = false AND (noSync IS NULL OR noSync = false)")
+            filter: "synced = false && (noSync = null || noSync = false)")
         .map(itemFactoryFunc);
   }
 
