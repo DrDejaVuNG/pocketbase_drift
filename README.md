@@ -5,7 +5,7 @@ A powerful, offline-first Flutter client for [PocketBase](https://pocketbase.io)
 This library extends the official PocketBase Dart SDK to provide a seamless offline-first experience. It automatically caches data from your PocketBase instance into a local SQLite database, allowing your app to remain fully functional even without a network connection. Changes made while offline are queued and automatically retried when connectivity is restored.
 
 <details>
-<summary><h2>📑 Table of Contents</h2></summary>
+<summary><h2 style="display: inline;">Table of Contents</h2></summary>
 
 - [Features](#features)
 - [Getting Started](#getting-started)
