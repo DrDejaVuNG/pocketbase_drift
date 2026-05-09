@@ -1,22 +1,22 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:logging/logging.dart';
 
 /// A service that monitors the device's network connectivity status.
 ///
 /// This service uses a hybrid approach combining:
-/// 1. `connectivity_plus` for passive OS-level network interface monitoring
+/// 1. `internet_connection_checker_plus` for monitoring internet connectivity
 /// 2. Request-based detection: actual network request success/failure
 ///
-/// This is a singleton because `connectivity_plus`'s `Connectivity()` is also
-/// a global singleton. Each `$PocketBase` client manages its own subscription
+/// This is a singleton because we only need one global listener for internet access.
+/// Each `$PocketBase` client manages its own subscription
 /// to this singleton's [statusStream].
 class ConnectivityService {
   ConnectivityService._() {
     _logger = Logger('ConnectivityService');
     _subscription =
-        Connectivity().onConnectivityChanged.listen(_onPlatformStatusChange);
+        InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
   }
 
   // Singleton instance - lives for the app's lifetime
@@ -26,7 +26,7 @@ class ConnectivityService {
   factory ConnectivityService() => _instance;
 
   final _statusController = StreamController<bool>.broadcast();
-  late StreamSubscription<List<ConnectivityResult>> _subscription;
+  late StreamSubscription<InternetStatus> _subscription;
   late final Logger _logger;
 
   /// Counter for consecutive network failures.
@@ -66,8 +66,7 @@ class ConnectivityService {
   /// Checks the current connectivity and updates the status.
   /// When called explicitly, trusts the platform status for both directions.
   Future<void> checkConnectivity() async {
-    final result = await Connectivity().checkConnectivity();
-    final platformConnected = !result.contains(ConnectivityResult.none);
+    final platformConnected = await InternetConnection().hasInternetAccess;
     _platformReportsConnected = platformConnected;
 
     // For explicit checks, trust the platform status
@@ -75,8 +74,8 @@ class ConnectivityService {
   }
 
   /// Called when the platform connectivity status changes.
-  void _onPlatformStatusChange(List<ConnectivityResult> result) {
-    final platformConnected = !result.contains(ConnectivityResult.none);
+  void _onPlatformStatusChange(InternetStatus status) {
+    final platformConnected = status == InternetStatus.connected;
     _platformReportsConnected = platformConnected;
 
     if (!platformConnected) {
@@ -128,7 +127,7 @@ class ConnectivityService {
     _logger.info('Resetting connectivity stream subscription.');
     _subscription.cancel();
     _subscription =
-        Connectivity().onConnectivityChanged.listen(_onPlatformStatusChange);
+        InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
     checkConnectivity();
   }
 }
