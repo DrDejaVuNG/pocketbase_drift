@@ -3,7 +3,6 @@ import 'dart:io' as io;
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:pocketbase_drift/pocketbase_drift.dart';
@@ -36,16 +35,8 @@ void main() {
 
   /// Helper to control mock connectivity status
   Future<void> setConnectivity(bool isOnline) async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-            const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-            (MethodCall methodCall) async {
-      if (methodCall.method == 'check') {
-        return isOnline ? <String>['wifi'] : <String>['none'];
-      }
-      return null;
-    });
-    await client.connectivity.checkConnectivity();
+    ConnectivityService.enableInternetChecker = false;
+    client.connectivity.setConnectivityStatus(isOnline);
   }
 
   setUpAll(() async {
@@ -55,10 +46,7 @@ void main() {
         // ignore: avoid_print
         .listen((record) => print('${record.level.name}: ${record.message}'));
 
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-            const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-            (MethodCall methodCall) async => ['wifi']);
+    ConnectivityService.enableInternetChecker = false;
 
     SharedPreferences.setMockInitialValues({});
     client = $PocketBase.database(

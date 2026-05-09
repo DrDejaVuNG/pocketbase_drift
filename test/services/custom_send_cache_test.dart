@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -34,14 +33,8 @@ void main() {
     });
 
     setUp(() async {
-      // Mock connectivity to report "online" before each test
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-              const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-              (MethodCall methodCall) async => ['wifi']);
-
-      // Trigger a connectivity check to update the singleton's state
-      await ConnectivityService().checkConnectivity();
+      ConnectivityService.enableInternetChecker = false;
+      ConnectivityService().setConnectivityStatus(true);
     });
 
     test(

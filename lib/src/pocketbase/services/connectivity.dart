@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:logging/logging.dart';
 
@@ -15,8 +16,10 @@ import 'package:logging/logging.dart';
 class ConnectivityService {
   ConnectivityService._() {
     _logger = Logger('ConnectivityService');
-    _subscription =
-        InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
+    if (enableInternetChecker) {
+      _subscription =
+          InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
+    }
   }
 
   // Singleton instance - lives for the app's lifetime
@@ -25,8 +28,13 @@ class ConnectivityService {
   /// Factory constructor returns the singleton instance.
   factory ConnectivityService() => _instance;
 
+  /// Global flag to disable the internet checker periodic timers.
+  /// Used primarily for testing.
+  @visibleForTesting
+  static bool enableInternetChecker = true;
+
   final _statusController = StreamController<bool>.broadcast();
-  late StreamSubscription<InternetStatus> _subscription;
+  StreamSubscription<InternetStatus>? _subscription;
   late final Logger _logger;
 
   /// Counter for consecutive network failures.
@@ -66,6 +74,7 @@ class ConnectivityService {
   /// Checks the current connectivity and updates the status.
   /// When called explicitly, trusts the platform status for both directions.
   Future<void> checkConnectivity() async {
+    if (!enableInternetChecker) return;
     final platformConnected = await InternetConnection().hasInternetAccess;
     _platformReportsConnected = platformConnected;
 
@@ -125,9 +134,19 @@ class ConnectivityService {
   /// Useful when the app resumes from background or after a hot restart.
   void resetSubscription() {
     _logger.info('Resetting connectivity stream subscription.');
-    _subscription.cancel();
-    _subscription =
-        InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
-    checkConnectivity();
+    _subscription?.cancel();
+    if (enableInternetChecker) {
+      _subscription =
+          InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
+      checkConnectivity();
+    }
+  }
+
+  /// Directly set the connectivity status. Only use for testing.
+  @visibleForTesting
+  void setConnectivityStatus(bool status) {
+    _platformReportsConnected = status;
+    _setConnected(status);
   }
 }
+

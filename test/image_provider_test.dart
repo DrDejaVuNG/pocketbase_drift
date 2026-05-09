@@ -59,6 +59,10 @@ void main() {
     late RecordModel dummyRecord;
     const String dummyFilename = 'test_image.gif';
 
+    setUpAll(() {
+      ConnectivityService.enableInternetChecker = false;
+    });
+
     // Use setUp to ensure a fresh, consistent database for each test.
     setUp(() {
       db = DataBase(connect('test', inMemory: true));

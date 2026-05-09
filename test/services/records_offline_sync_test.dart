@@ -22,17 +22,8 @@ void main() {
 
     // Test helper to control the mock connectivity status
     Future<void> setConnectivity(bool isOnline) async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-              const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-              (MethodCall methodCall) async {
-        if (methodCall.method == 'check') {
-          return isOnline ? <String>['wifi'] : <String>['none'];
-        }
-        return null;
-      });
-      // Manually trigger a status update in our service to simulate the change
-      await client.connectivity.checkConnectivity();
+      ConnectivityService.enableInternetChecker = false;
+      client.connectivity.setConnectivityStatus(isOnline);
     }
 
     setUpAll(() async {
@@ -42,15 +33,7 @@ void main() {
         // ignore: avoid_print
         print('${record.level.name}: ${record.time}: ${record.message}');
       });
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-              const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-              (MethodCall methodCall) async {
-        if (methodCall.method == 'check') {
-          return <String>['wifi'];
-        }
-        return null;
-      });
+      ConnectivityService.enableInternetChecker = false;
 
       client = $PocketBase.database(
         url,
