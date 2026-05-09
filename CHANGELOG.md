@@ -1,3 +1,14 @@
+## 0.4.2
+
+### Dependencies
+
+- **Connectivity** - Replaced `connectivity_plus` with `internet_connection_checker_plus` to verify actual internet access rather than just network interface availability.
+- **Updated package dependencies** - Bumped `drift` and `drift_dev` to `^2.33.0`, `sqlite3` to `^3.3.1`, and `shared_preferences` to `^2.5.5`.
+
+### Improvements
+
+- **Enhanced `ConnectivityService`** - Now relies on `internet_connection_checker_plus` for verifying real internet access. It maintains an optimistic "online-by-default" approach that defaults to `true` to prevent UI flickering, and falls back rapidly when an actual network request fails.
+
 ## 0.4.1
 
 ### New Features
