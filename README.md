@@ -1,6 +1,6 @@
 # PocketBase Drift
 
-A powerful, offline-first Flutter client for [PocketBase](https://pocketbase.io), backed by the reactive persistence of [Drift](https://drift.simonbinder.eu) (the Flutter & Dart flavor of `moor`).
+A powerful, offline-first Flutter client for [PocketBase](https://pocketbase.io), backed by the reactive persistence of [Drift](https://drift.simonbinder.eu).
 
 This library extends the official PocketBase Dart SDK to provide a seamless offline-first experience. It automatically caches data from your PocketBase instance into a local SQLite database, allowing your app to remain fully functional even without a network connection. Changes made while offline are queued and automatically retried when connectivity is restored.
 
@@ -80,7 +80,7 @@ Add the following packages to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pocketbase_drift: ^0.4.2 # Use the latest version
+  pocketbase_drift: ^0.4.3 # Use the latest version
 ```
 
 ### 2. Initialize the Client
@@ -249,6 +249,9 @@ final posts = await client.collection('posts').getFullList(
   sort: '-created',
   requestPolicy: RequestPolicy.cacheAndNetwork, // Explicitly set policy
 );
+
+// Watch a single record
+final postStream = client.collection('posts').watchRecord('RECORD_ID');
 
 // Get a single record
 final post = await client.collection('posts').getOne('RECORD_ID');

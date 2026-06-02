@@ -1,3 +1,9 @@
+## 0.4.3
+
+### Dependencies
+
+- **Updated package dependencies** - Updated core dependencies including `pocketbase`, `sqlite3`, and `internet_connection_checker_plus` to latest versions.
+
 ## 0.4.2
 
 ### Dependencies

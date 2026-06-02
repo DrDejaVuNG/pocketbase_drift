@@ -149,4 +149,3 @@ class ConnectivityService {
     _setConnected(status);
   }
 }
-
