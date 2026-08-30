@@ -1,3 +1,17 @@
+## Unreleased
+
+### Improvements & Bug Fixes
+
+- **Stream Error Propagation & Lifecycle Safety** - Resolved an issue where initial fetch failures in `watchRecords`/`watchRecordsState` vanished silently rather than surfacing as stream errors. Closed race-condition subscription leak windows during in-flight cancellations, and added `onPause`/`onResume` support to underlying Drift queries. Special thanks to [@qtpi-bonding-org](https://github.com/qtpi-bonding-org) for identifying and contributing the initial fix for these lifecycle issues.
+- **Enhanced `QueryState<T>` Error Handling** - Added `error` and `hasError` properties to `QueryState<T>` so offline-first Flutter UIs (such as `StreamBuilder` and Riverpod `StreamProvider`) can retain and inspect network error states alongside cached data without errors being wiped out by subsequent data events.
+- **Deep Relation Equality in `distinctResults`** - Expanded relations (`data['expand']`) are now checked within `distinctResults` so changes to related records properly trigger stream emissions.
+- **Analysis & Try-Catch Await** - Resolved an analyzer warning in `getFirstListItemOrNull` by awaiting the future inside the `try` block.
+
+### Dependencies
+
+- **Removed `sqlite3_flutter_libs`** - Removed the obsolete `sqlite3_flutter_libs` package (now end-of-life and unnecessary with `sqlite3` 3.x).
+- **Updated Dependencies** - Updated `pocketbase` to `^0.25.0`, `drift` to `^2.34.3`, `sqlite3` to `^3.5.2`, `internet_connection_checker_plus` to `^3.1.1`, and `path_provider` to `^2.1.6`.
+
 ## 0.4.3
 
 ### Dependencies

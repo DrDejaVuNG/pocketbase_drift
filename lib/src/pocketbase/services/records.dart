@@ -1,26 +1,41 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:pocketbase_drift/pocketbase_drift.dart';
 
+/// Represents the reactive state of a query, bundling cached data with
+/// network fetching status and any error encountered during remote synchronization.
 class QueryState<T> {
   const QueryState({
     required this.data,
     required this.isFetchingNetwork,
+    this.error,
   });
 
+  /// The latest cached or fetched data.
   final T data;
+
+  /// Whether a background network request is currently active.
   final bool isFetchingNetwork;
+
+  /// The error encountered during the most recent network fetch, if any.
+  final Object? error;
+
+  /// Whether an error occurred during the most recent network fetch.
+  bool get hasError => error != null;
 
   QueryState<T> copyWith({
     T? data,
     bool? isFetchingNetwork,
+    Object? error,
   }) {
     return QueryState<T>(
       data: data ?? this.data,
       isFetchingNetwork: isFetchingNetwork ?? this.isFetchingNetwork,
+      error: error ?? this.error,
     );
   }
 }
@@ -334,31 +349,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
   }) {
     final policy = resolvePolicy(requestPolicy);
     UnsubscribeFunc? unsub;
-    final controller = StreamController<RecordModel?>(
-      onListen: () async {
-        if (policy.isNetwork) {
-          try {
-            unsub = await subscribe(id, (e) {});
-          } catch (e) {
-            client.logger
-                .warning('Error subscribing to record $service/$id', e);
-          }
-        }
-        await getOneOrNull(id,
-            expand: expand, fields: fields, requestPolicy: policy);
-      },
-      onCancel: () async {
-        if (policy.isNetwork) {
-          try {
-            await unsub?.call();
-          } catch (e) {
-            client.logger.fine(
-                'Error unsubscribing from record $service/$id (may be intentional)',
-                e);
-          }
-        }
-      },
-    );
+    StreamSubscription<RecordModel?>? dbSubscription;
+    var cancelled = false;
     var stream = client.db
         .$query(
           service,
@@ -373,11 +365,65 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
       stream = stream.distinct((prev, next) {
         if (prev == null && next == null) return true;
         if (prev == null || next == null) return false;
-        return prev.id == next.id && prev.get('updated') == next.get('updated');
+        return prev.id == next.id &&
+            prev.get('updated') == next.get('updated') &&
+            jsonEncode(prev.data['expand']) == jsonEncode(next.data['expand']);
       });
     }
 
-    controller.addStream(stream);
+    late final StreamController<RecordModel?> controller;
+    controller = StreamController<RecordModel?>(
+      onListen: () async {
+        cancelled = false;
+        dbSubscription = stream.listen(
+          (data) {
+            if (!controller.isClosed) controller.add(data);
+          },
+          onError: (Object e, StackTrace st) {
+            if (!controller.isClosed) controller.addError(e, st);
+          },
+        );
+
+        if (policy.isNetwork) {
+          try {
+            final result = await subscribe(id, (e) {});
+            if (cancelled) {
+              await result.call();
+            } else {
+              unsub = result;
+            }
+          } catch (e) {
+            client.logger
+                .warning('Error subscribing to record $service/$id', e);
+          }
+        }
+
+        try {
+          await getOneOrNull(id,
+              expand: expand, fields: fields, requestPolicy: policy);
+        } catch (e, st) {
+          if (!controller.isClosed) controller.addError(e, st);
+        }
+      },
+      onPause: () => dbSubscription?.pause(),
+      onResume: () => dbSubscription?.resume(),
+      onCancel: () async {
+        cancelled = true;
+        try {
+          await dbSubscription?.cancel();
+        } finally {
+          if (policy.isNetwork) {
+            try {
+              await unsub?.call();
+            } catch (e) {
+              client.logger.fine(
+                  'Error unsubscribing from record $service/$id (may be intentional)',
+                  e);
+            }
+          }
+        }
+      },
+    );
     return controller.stream;
   }
 
@@ -392,38 +438,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
   }) {
     final policy = resolvePolicy(requestPolicy);
     UnsubscribeFunc? unsub;
-    final controller = StreamController<List<RecordModel>>(
-      onListen: () async {
-        if (policy.isNetwork) {
-          try {
-            unsub = await subscribe('*', (e) {});
-          } catch (e) {
-            client.logger
-                .warning('Error subscribing to collection $service', e);
-          }
-        }
-        final items = await getFullList(
-          requestPolicy: policy,
-          filter: filter,
-          expand: expand,
-          sort: sort,
-          fields: fields,
-        );
-        client.logger.fine(
-            'Realtime initial full list for "$service" [${policy.name}]: ${items.length} items');
-      },
-      onCancel: () async {
-        if (policy.isNetwork) {
-          try {
-            await unsub?.call();
-          } catch (e) {
-            client.logger.fine(
-                'Error unsubscribing from collection $service (may be intentional)',
-                e);
-          }
-        }
-      },
-    );
+    StreamSubscription<List<RecordModel>>? dbSubscription;
+    var cancelled = false;
     var stream = client.db
         .$query(
           service,
@@ -441,7 +457,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
         if (prev.length != next.length) return false;
         for (var i = 0; i < prev.length; i++) {
           if (prev[i].id != next[i].id ||
-              prev[i].get('updated') != next[i].get('updated')) {
+              prev[i].get('updated') != next[i].get('updated') ||
+              jsonEncode(prev[i].data['expand']) != jsonEncode(next[i].data['expand'])) {
             return false;
           }
         }
@@ -449,7 +466,66 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
       });
     }
 
-    controller.addStream(stream);
+    late final StreamController<List<RecordModel>> controller;
+    controller = StreamController<List<RecordModel>>(
+      onListen: () async {
+        cancelled = false;
+        dbSubscription = stream.listen(
+          (data) {
+            if (!controller.isClosed) controller.add(data);
+          },
+          onError: (Object e, StackTrace st) {
+            if (!controller.isClosed) controller.addError(e, st);
+          },
+        );
+
+        if (policy.isNetwork) {
+          try {
+            final result = await subscribe('*', (e) {});
+            if (cancelled) {
+              await result.call();
+            } else {
+              unsub = result;
+            }
+          } catch (e) {
+            client.logger
+                .warning('Error subscribing to collection $service', e);
+          }
+        }
+
+        try {
+          final items = await getFullList(
+            requestPolicy: policy,
+            filter: filter,
+            expand: expand,
+            sort: sort,
+            fields: fields,
+          );
+          client.logger.fine(
+              'Realtime initial full list for "$service" [${policy.name}]: ${items.length} items');
+        } catch (e, st) {
+          if (!controller.isClosed) controller.addError(e, st);
+        }
+      },
+      onPause: () => dbSubscription?.pause(),
+      onResume: () => dbSubscription?.resume(),
+      onCancel: () async {
+        cancelled = true;
+        try {
+          await dbSubscription?.cancel();
+        } finally {
+          if (policy.isNetwork) {
+            try {
+              await unsub?.call();
+            } catch (e) {
+              client.logger.fine(
+                  'Error unsubscribing from collection $service (may be intentional)',
+                  e);
+            }
+          }
+        }
+      },
+    );
     return controller.stream;
   }
 
@@ -465,28 +541,23 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
     bool isFetchingNetwork = policy.isNetwork;
     StreamSubscription<RecordModel?>? dbSubscription;
     RecordModel? latestData;
+    var cancelled = false;
+
+    final stream = client.db
+        .$query(
+          service,
+          filter: "id = '$id'",
+          expand: expand,
+          fields: fields,
+        )
+        .map(itemFactoryFunc)
+        .watchSingleOrNull();
 
     late final StreamController<QueryState<RecordModel?>> controller;
     controller = StreamController<QueryState<RecordModel?>>(
       onListen: () async {
-        if (policy.isNetwork) {
-          try {
-            unsub = await subscribe(id, (e) {});
-          } catch (e) {
-            client.logger
-                .warning('Error subscribing to record $service/$id', e);
-          }
-        }
-
-        final stream = client.db
-            .$query(
-              service,
-              filter: "id = '$id'",
-              expand: expand,
-              fields: fields,
-            )
-            .map(itemFactoryFunc)
-            .watchSingleOrNull();
+        cancelled = false;
+        Object? fetchError;
 
         dbSubscription = stream.listen((data) {
           latestData = data;
@@ -494,13 +565,31 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
             controller.add(QueryState(
               data: data,
               isFetchingNetwork: isFetchingNetwork,
+              error: fetchError,
             ));
           }
         });
 
+        if (policy.isNetwork) {
+          try {
+            final result = await subscribe(id, (e) {});
+            if (cancelled) {
+              await result.call();
+            } else {
+              unsub = result;
+            }
+          } catch (e) {
+            client.logger
+                .warning('Error subscribing to record $service/$id', e);
+          }
+        }
+
         try {
           await getOneOrNull(id,
               expand: expand, fields: fields, requestPolicy: policy);
+        } catch (e, st) {
+          fetchError = e;
+          if (!controller.isClosed) controller.addError(e, st);
         } finally {
           if (isFetchingNetwork) {
             isFetchingNetwork = false;
@@ -508,20 +597,27 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
               controller.add(QueryState(
                 data: latestData,
                 isFetchingNetwork: false,
+                error: fetchError,
               ));
             }
           }
         }
       },
+      onPause: () => dbSubscription?.pause(),
+      onResume: () => dbSubscription?.resume(),
       onCancel: () async {
-        await dbSubscription?.cancel();
-        if (policy.isNetwork) {
-          try {
-            await unsub?.call();
-          } catch (e) {
-            client.logger.fine(
-                'Error unsubscribing from record $service/$id (may be intentional)',
-                e);
+        cancelled = true;
+        try {
+          await dbSubscription?.cancel();
+        } finally {
+          if (policy.isNetwork) {
+            try {
+              await unsub?.call();
+            } catch (e) {
+              client.logger.fine(
+                  'Error unsubscribing from record $service/$id (may be intentional)',
+                  e);
+            }
           }
         }
       },
@@ -530,12 +626,14 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
     if (distinctResults) {
       return controller.stream.distinct((prev, next) {
         if (prev.isFetchingNetwork != next.isFetchingNetwork) return false;
+        if (prev.error != next.error) return false;
         final pData = prev.data;
         final nData = next.data;
         if (pData == null && nData == null) return true;
         if (pData == null || nData == null) return false;
         return pData.id == nData.id &&
-            pData.get('updated') == nData.get('updated');
+            pData.get('updated') == nData.get('updated') &&
+            jsonEncode(pData.data['expand']) == jsonEncode(nData.data['expand']);
       });
     }
 
@@ -556,30 +654,25 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
     bool isFetchingNetwork = policy.isNetwork;
     StreamSubscription<List<RecordModel>>? dbSubscription;
     List<RecordModel> latestData = [];
+    var cancelled = false;
+
+    final stream = client.db
+        .$query(
+          service,
+          filter: filter,
+          expand: expand,
+          sort: sort,
+          limit: limit,
+          fields: fields,
+        )
+        .map(itemFactoryFunc)
+        .watch();
 
     late final StreamController<QueryState<List<RecordModel>>> controller;
     controller = StreamController<QueryState<List<RecordModel>>>(
       onListen: () async {
-        if (policy.isNetwork) {
-          try {
-            unsub = await subscribe('*', (e) {});
-          } catch (e) {
-            client.logger
-                .warning('Error subscribing to collection $service', e);
-          }
-        }
-
-        final stream = client.db
-            .$query(
-              service,
-              filter: filter,
-              expand: expand,
-              sort: sort,
-              limit: limit,
-              fields: fields,
-            )
-            .map(itemFactoryFunc)
-            .watch();
+        cancelled = false;
+        Object? fetchError;
 
         dbSubscription = stream.listen((data) {
           latestData = data;
@@ -587,9 +680,24 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
             controller.add(QueryState(
               data: data,
               isFetchingNetwork: isFetchingNetwork,
+              error: fetchError,
             ));
           }
         });
+
+        if (policy.isNetwork) {
+          try {
+            final result = await subscribe('*', (e) {});
+            if (cancelled) {
+              await result.call();
+            } else {
+              unsub = result;
+            }
+          } catch (e) {
+            client.logger
+                .warning('Error subscribing to collection $service', e);
+          }
+        }
 
         try {
           final items = await getFullList(
@@ -601,6 +709,9 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
           );
           client.logger.fine(
               'Realtime initial full list for "$service" [${policy.name}]: ${items.length} items');
+        } catch (e, st) {
+          fetchError = e;
+          if (!controller.isClosed) controller.addError(e, st);
         } finally {
           if (isFetchingNetwork) {
             isFetchingNetwork = false;
@@ -608,20 +719,27 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
               controller.add(QueryState(
                 data: latestData,
                 isFetchingNetwork: false,
+                error: fetchError,
               ));
             }
           }
         }
       },
+      onPause: () => dbSubscription?.pause(),
+      onResume: () => dbSubscription?.resume(),
       onCancel: () async {
-        await dbSubscription?.cancel();
-        if (policy.isNetwork) {
-          try {
-            await unsub?.call();
-          } catch (e) {
-            client.logger.fine(
-                'Error unsubscribing from collection $service (may be intentional)',
-                e);
+        cancelled = true;
+        try {
+          await dbSubscription?.cancel();
+        } finally {
+          if (policy.isNetwork) {
+            try {
+              await unsub?.call();
+            } catch (e) {
+              client.logger.fine(
+                  'Error unsubscribing from collection $service (may be intentional)',
+                  e);
+            }
           }
         }
       },
@@ -630,12 +748,14 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
     if (distinctResults) {
       return controller.stream.distinct((prev, next) {
         if (prev.isFetchingNetwork != next.isFetchingNetwork) return false;
+        if (prev.error != next.error) return false;
         final pData = prev.data;
         final nData = next.data;
         if (pData.length != nData.length) return false;
         for (var i = 0; i < pData.length; i++) {
           if (pData[i].id != nData[i].id ||
-              pData[i].get('updated') != nData[i].get('updated')) {
+              pData[i].get('updated') != nData[i].get('updated') ||
+              jsonEncode(pData[i].data['expand']) != jsonEncode(nData[i].data['expand'])) {
             return false;
           }
         }
@@ -645,4 +765,5 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
 
     return controller.stream;
   }
+
 }
