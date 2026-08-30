@@ -3,7 +3,7 @@
 ### New Features & Examples
 
 - **Modernized Example Application (TaskFlow)** - Replaced legacy example with a feature-first reference app demonstrating offline-first task and project management, Riverpod state management, GoRouter navigation, relation expansion, local full-text search, and live sync diagnostics.
-- **Added Playbook Skills (`skills/pocketbase_drift/`)** - Added comprehensive, production-grade agent playbook skills and architecture reference guides directly in the repository.
+- **Added Skills (`skills/pocketbase-drift/`)** - Added comprehensive, production-grade agent playbook skills and architecture reference guides directly in the repository.
 
 ### Web & WASM Improvements
 
