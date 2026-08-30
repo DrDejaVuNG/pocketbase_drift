@@ -8,14 +8,14 @@ import 'package:pocketbase_drift/pocketbase_drift.dart';
 
 import 'test_data/collections.json.dart';
 
-/// Tests for PocketBase SDK's RecordModel.get<T>() dot-notation path access
+/// Tests for PocketBase SDK's `RecordModel.get<T>()` dot-notation path access
 /// for locally expanded relations.
 ///
 /// The PocketBase SDK uses dot-notation to access nested fields:
-/// - record.get<String>('expand.user.name') - single relation (direct access)
-/// - record.get<RecordModel>('expand.user') - single relation as RecordModel
-/// - record.get<List<RecordModel>>('expand.products') - multi relation as list
-/// - record.get<int>('expand.items.0.quantity') - multi relation by index
+/// - `record.get<String>('expand.user.name')` - single relation (direct access)
+/// - `record.get<RecordModel>('expand.user')` - single relation as RecordModel
+/// - `record.get<List<RecordModel>>('expand.products')` - multi relation as list
+/// - `record.get<int>('expand.items.0.quantity')` - multi relation by index
 ///
 /// These tests verify that local expansion in pocketbase_drift produces
 /// data structures compatible with this API, matching the official SDK behavior:

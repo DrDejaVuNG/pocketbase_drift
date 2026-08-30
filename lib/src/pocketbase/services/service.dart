@@ -328,7 +328,7 @@ mixin ServiceMixin<M extends Jsonable> on BaseCrudService<M> {
   }) async {
     final policy = resolvePolicy(requestPolicy);
     try {
-      return getFirstListItem(
+      return await getFirstListItem(
         filter,
         expand: expand,
         fields: fields,
