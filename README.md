@@ -115,9 +115,7 @@ final client = $PocketBase.database('http://127.0.0.1:8090')
 For web, you need to follow the instructions for [Drift on the Web](https://drift.simonbinder.eu/web/#drift-wasm) to copy the `sqlite3.wasm` binary and `drift_worker.js` file into your `web/` directory.
 
 1.  Download the latest `sqlite3.wasm` from the [sqlite3.dart releases](https://github.com/simolus3/sqlite3.dart/releases) and the latest `drift_worker.js` from the [drift releases](https://github.com/simolus3/drift/releases).
-2.  Place each file inside your project's `web/` folder.
-3.  Rename `drift_worker.js` to `drift_worker.dart.js`.
-
+2.  Place both files directly inside your project's `web/` folder (`web/sqlite3.wasm` and `web/drift_worker.js`).
 ## Core Concepts
 
 ### RequestPolicy

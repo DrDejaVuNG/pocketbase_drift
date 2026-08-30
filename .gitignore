@@ -31,3 +31,7 @@ build/
 test/pocketbase
 db
 .pb/
+
+# Web SQLite & Drift WASM binaries
+*.wasm
+drift_worker*.js

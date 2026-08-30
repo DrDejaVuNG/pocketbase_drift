@@ -16,7 +16,7 @@ import 'package:logging/logging.dart';
 class ConnectivityService {
   ConnectivityService._() {
     _logger = Logger('ConnectivityService');
-    if (enableInternetChecker) {
+    if (enableInternetChecker && !kIsWeb) {
       _subscription =
           InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
     }
@@ -74,9 +74,8 @@ class ConnectivityService {
   /// Checks the current connectivity and updates the status.
   /// When called explicitly, trusts the platform status for both directions.
   Future<void> checkConnectivity() async {
-    if (!enableInternetChecker) return;
+    if (!enableInternetChecker || kIsWeb) return;
     final platformConnected = await InternetConnection().hasInternetAccess;
-    _platformReportsConnected = platformConnected;
 
     // For explicit checks, trust the platform status
     _setConnected(platformConnected);
@@ -135,7 +134,7 @@ class ConnectivityService {
   void resetSubscription() {
     _logger.info('Resetting connectivity stream subscription.');
     _subscription?.cancel();
-    if (enableInternetChecker) {
+    if (enableInternetChecker && !kIsWeb) {
       _subscription =
           InternetConnection().onStatusChange.listen(_onPlatformStatusChange);
       checkConnectivity();
