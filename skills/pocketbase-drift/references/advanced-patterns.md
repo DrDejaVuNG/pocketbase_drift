@@ -16,8 +16,8 @@ class Post {
     this.author,
     this.tags = const [],
     required this.published,
-    required this.createdAt,
-    required this.updatedAt,
+    required this.created,
+    required this.updated,
   });
   
   final String id;
@@ -27,8 +27,8 @@ class Post {
   final User? author;
   final List<String> tags;
   final bool published;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime created;
+  final DateTime updated;
   
   factory Post.fromRecord(RecordModel record) {
     // Use dot notation for expanded relations (record.expand is deprecated)
@@ -42,8 +42,8 @@ class Post {
       author: expandedAuthor != null ? User.fromRecord(expandedAuthor) : null,
       tags: record.getListValue<String>('tags'),
       published: record.getBoolValue('published'),
-      createdAt: DateTime.parse(record.get('createdAt')),
-      updatedAt: DateTime.parse(record.get('updatedAt')),
+      created: DateTime.parse(record.get('created')),
+      updated: DateTime.parse(record.get('updated')),
     );
   }
   
@@ -69,8 +69,8 @@ class Post {
       author: author,
       tags: tags ?? this.tags,
       published: published ?? this.published,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
+      created: created,
+      updated: updated,
     );
   }
 }
@@ -491,23 +491,23 @@ class Todo {
     required this.id,
     required this.title,
     required this.completed,
-    required this.createdAt,
-    required this.updatedAt,
+    required this.created,
+    required this.updated,
   });
   
   final String id;
   final String title;
   final bool completed;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime created;
+  final DateTime updated;
   
   factory Todo.fromRecord(RecordModel record) {
     return Todo(
       id: record.id,
       title: record.getStringValue('title'),
       completed: record.getBoolValue('completed'),
-      createdAt: DateTime.parse(record.get('createdAt')),
-      updatedAt: DateTime.parse(record.get('updatedAt')),
+      created: DateTime.parse(record.get('created')),
+      updated: DateTime.parse(record.get('updated')),
     );
   }
   
@@ -528,7 +528,7 @@ class TodoRepository {
   
   Stream<List<Todo>> watchAll() {
     return _client.collection('todos')
-      .watchRecords(sort: '-createdAt')
+      .watchRecords(sort: '-created')
       .map((records) => records.map(Todo.fromRecord).toList());
   }
   

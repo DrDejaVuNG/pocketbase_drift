@@ -16,7 +16,7 @@ final post = await client.collection('posts').getOne(
 
 // Access fields
 final title = post.get<String>('title');
-final createdAt = DateTime.parse(post.get('createdAt'));
+final created = DateTime.parse(post.get('created'));
 ```
 
 ### Get One or Null
@@ -41,7 +41,7 @@ final result = await client.collection('posts').getList(
   page: 1,
   perPage: 20,
   filter: "published = true",
-  sort: '-createdAt',
+  sort: '-created',
   expand: 'author',
   requestPolicy: RequestPolicy.cacheAndNetwork,
 );
@@ -63,7 +63,7 @@ Fetches all records (automatically handles pagination):
 ```dart
 final posts = await client.collection('posts').getFullList(
   filter: "author = '${userId}'",
-  sort: '-createdAt',
+  sort: '-created',
   expand: 'author,tags',
   requestPolicy: RequestPolicy.cacheAndNetwork,
 );
@@ -74,7 +74,7 @@ final posts = await client.collection('posts').getFullList(
 ```dart
 final latestPost = await client.collection('posts').getFirstListItem(
   "published = true",
-  sort: '-createdAt',
+  sort: '-created',
   requestPolicy: RequestPolicy.cacheAndNetwork,
 );
 
@@ -206,7 +206,7 @@ final posts = await client.collection('posts').getFullList(
 
 // Comparison
 final recentPosts = await client.collection('posts').getFullList(
-  filter: "createdAt >= '2024-01-01'",
+  filter: "created >= '2024-01-01'",
 );
 
 // Boolean AND
@@ -216,7 +216,7 @@ final myPublished = await client.collection('posts').getFullList(
 
 // Boolean OR
 final hotOrNew = await client.collection('posts').getFullList(
-  filter: "featured = true || createdAt >= '2024-01-01'",
+  filter: "featured = true || created >= '2024-01-01'",
 );
 
 // Contains (LIKE)
@@ -245,12 +245,12 @@ final posts = await client.collection('posts').getFullList(
 
 // Descending (prefix with -)
 final posts = await client.collection('posts').getFullList(
-  sort: '-createdAt',
+  sort: '-created',
 );
 
 // Multiple fields
 final posts = await client.collection('posts').getFullList(
-  sort: '-featured,createdAt',
+  sort: '-featured,created',
 );
 ```
 
@@ -260,7 +260,7 @@ Limit returned fields for performance:
 
 ```dart
 final posts = await client.collection('posts').getFullList(
-  fields: 'id,title,createdAt',
+  fields: 'id,title,created',
 );
 ```
 

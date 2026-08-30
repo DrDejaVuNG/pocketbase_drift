@@ -84,7 +84,7 @@ final tags = post.get<List<RecordModel>>('expand.tags') ?? [];
 ```dart
 final posts = await client.collection('posts').getFullList(
   expand: 'author',
-  sort: '-createdAt',
+  sort: '-created',
 );
 
 for (final post in posts) {
@@ -101,7 +101,7 @@ final postsProvider = StreamProvider<List<RecordModel>>((ref) {
   final client = ref.watch(pocketbaseProvider);
   return client.collection('posts').watchRecords(
     expand: 'author,category',
-    sort: '-createdAt',
+    sort: '-created',
   );
 });
 

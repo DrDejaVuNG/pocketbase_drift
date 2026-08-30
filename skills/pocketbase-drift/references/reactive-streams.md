@@ -23,7 +23,7 @@ Stream<List<RecordModel>> stream = client.collection('posts').watchRecords();
 // With filtering
 Stream<List<RecordModel>> stream = client.collection('posts').watchRecords(
   filter: "author = '${userId}'",
-  sort: '-createdAt',
+  sort: '-created',
   limit: 20,
   expand: 'author',
   requestPolicy: RequestPolicy.cacheAndNetwork,
@@ -91,7 +91,7 @@ When `watchRecords` is called:
 final postsProvider = StreamProvider<List<RecordModel>>((ref) {
   final client = ref.watch(pocketbaseProvider);
   return client.collection('posts').watchRecords(
-    sort: '-createdAt',
+    sort: '-created',
     expand: 'author',
   );
 });
@@ -101,7 +101,7 @@ final userPostsProvider = StreamProvider.family<List<RecordModel>, String>((ref,
   final client = ref.watch(pocketbaseProvider);
   return client.collection('posts').watchRecords(
     filter: "author = '$userId'",
-    sort: '-createdAt',
+    sort: '-created',
   );
 });
 

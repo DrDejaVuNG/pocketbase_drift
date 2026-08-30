@@ -203,7 +203,7 @@ class PostRepository extends BaseRepository<Post> {
   Stream<List<RecordModel>> watchPublished() {
     return watchAll(
       filter: "published = true",
-      sort: '-createdAt',
+      sort: '-created',
       expand: 'author',
     );
   }
@@ -211,7 +211,7 @@ class PostRepository extends BaseRepository<Post> {
   Stream<List<RecordModel>> watchByAuthor(String authorId) {
     return watchAll(
       filter: "author = '$authorId'",
-      sort: '-createdAt',
+      sort: '-created',
     );
   }
   

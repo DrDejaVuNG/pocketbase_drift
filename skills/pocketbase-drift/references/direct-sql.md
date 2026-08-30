@@ -19,8 +19,8 @@ All PocketBase records are stored in a generic `services` table:
 | `id` | TEXT | Record ID (PocketBase ID) |
 | `service` | TEXT | Collection name (e.g., "posts", "users") |
 | `data` | TEXT | JSON-encoded record data |
-| `createdAt` | TEXT | ISO 8601 timestamp |
-| `updatedAt` | TEXT | ISO 8601 timestamp |
+| `created` | TEXT | ISO 8601 timestamp |
+| `updated` | TEXT | ISO 8601 timestamp |
 
 **Primary Key**: `(id, service)`
 
@@ -54,11 +54,11 @@ final posts = await client.db.customSelect('''
     id,
     json_extract(data, '\$.title') as title,
     json_extract(data, '\$.author') as author,
-    createdAt
+    created
   FROM services 
   WHERE service = 'posts'
     AND json_extract(data, '\$.published') = 1
-  ORDER BY createdAt DESC
+  ORDER BY created DESC
   LIMIT 10
 ''').get();
 
@@ -85,7 +85,7 @@ final results = await client.db.customSelect('''
     ON json_extract(p.data, '\$.author') = u.id 
     AND u.service = 'users'
   WHERE p.service = 'posts'
-  ORDER BY p.createdAt DESC
+  ORDER BY p.created DESC
 ''').get();
 
 for (final row in results) {
@@ -137,7 +137,7 @@ For PocketBase-style queries without raw SQL:
 final posts = await client.db.$query(
   'posts',
   filter: "published = true && author != ''",
-  sort: '-createdAt',
+  sort: '-created',
   limit: 10,
 ).get();
 
@@ -146,7 +146,7 @@ final posts = await client.db.$query(
   'posts',
   filter: "published = true",
   expand: 'author',
-  sort: '-createdAt',
+  sort: '-created',
 ).get();
 ```
 
@@ -276,7 +276,7 @@ await client.db.customSelect('''
 final recent = await client.db.customSelect('''
   SELECT * FROM services 
   WHERE service = 'posts'
-  ORDER BY createdAt DESC
+  ORDER BY created DESC
   LIMIT 20
 ''').get();
 ```
