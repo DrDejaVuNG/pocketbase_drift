@@ -1,4 +1,4 @@
-## Unreleased
+## 0.4.4
 
 ### Improvements & Bug Fixes
 

@@ -82,7 +82,8 @@ void main() {
 
   test(
       'watchRecordsState surfaces a networkOnly fetch failure as a stream '
-      'error AND embeds it in QueryState.error without losing error visibility', () async {
+      'error AND embeds it in QueryState.error without losing error visibility',
+      () async {
     final service = await client.$collection('todo');
 
     final errors = <Object>[];
@@ -102,7 +103,8 @@ void main() {
             'this stream as a catchable error, not vanish silently');
     expect(states, isNotEmpty);
     expect(states.last.hasError, isTrue,
-        reason: 'QueryState must embed the network error for UI state builders');
+        reason:
+            'QueryState must embed the network error for UI state builders');
     expect(states.last.error, isNotNull);
   });
 
@@ -135,7 +137,8 @@ void main() {
             'manually-forwarded db stream, not just the initial snapshot');
   });
 
-  test('watchRecord distinctResults detects changes in expanded relations', () async {
+  test('watchRecord distinctResults detects changes in expanded relations',
+      () async {
     final service = await client.$collection('ultimate');
     await client.db.deleteAll(service.service);
 
@@ -163,7 +166,8 @@ void main() {
     expect(events.last?.data['plain_text'], 'ultimate_updated');
   });
 
-  test('watchRecords allows clean resubscription on broadcast stream', () async {
+  test('watchRecords allows clean resubscription on broadcast stream',
+      () async {
     final service = await client.$collection('todo');
     await client.db.deleteAll(service.service);
 
@@ -189,6 +193,7 @@ void main() {
     await sub2.cancel();
 
     expect(events, isNotEmpty);
-    expect(events.last.any((r) => r.data['name'] == 'resubscription_item'), isTrue);
+    expect(events.last.any((r) => r.data['name'] == 'resubscription_item'),
+        isTrue);
   });
 }

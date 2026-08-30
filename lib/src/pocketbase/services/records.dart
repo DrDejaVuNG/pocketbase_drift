@@ -458,7 +458,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
         for (var i = 0; i < prev.length; i++) {
           if (prev[i].id != next[i].id ||
               prev[i].get('updated') != next[i].get('updated') ||
-              jsonEncode(prev[i].data['expand']) != jsonEncode(next[i].data['expand'])) {
+              jsonEncode(prev[i].data['expand']) !=
+                  jsonEncode(next[i].data['expand'])) {
             return false;
           }
         }
@@ -633,7 +634,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
         if (pData == null || nData == null) return false;
         return pData.id == nData.id &&
             pData.get('updated') == nData.get('updated') &&
-            jsonEncode(pData.data['expand']) == jsonEncode(nData.data['expand']);
+            jsonEncode(pData.data['expand']) ==
+                jsonEncode(nData.data['expand']);
       });
     }
 
@@ -755,7 +757,8 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
         for (var i = 0; i < pData.length; i++) {
           if (pData[i].id != nData[i].id ||
               pData[i].get('updated') != nData[i].get('updated') ||
-              jsonEncode(pData[i].data['expand']) != jsonEncode(nData[i].data['expand'])) {
+              jsonEncode(pData[i].data['expand']) !=
+                  jsonEncode(nData[i].data['expand'])) {
             return false;
           }
         }
@@ -765,5 +768,4 @@ class $RecordService extends RecordService with ServiceMixin<RecordModel> {
 
     return controller.stream;
   }
-
 }
