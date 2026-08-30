@@ -1,3 +1,15 @@
+## 0.5.0
+
+### New Features & Examples
+
+- **Modernized Example Application (TaskFlow)** - Replaced legacy example with a feature-first reference app demonstrating offline-first task and project management, Riverpod state management, GoRouter navigation, relation expansion, local full-text search, and live sync diagnostics.
+- **Added Playbook Skills (`skills/pocketbase_drift/`)** - Added comprehensive, production-grade agent playbook skills and architecture reference guides directly in the repository.
+
+### Web & WASM Improvements
+
+- **Web Database Worker Resolution** - Updated Web WASM connection to directly resolve `drift_worker.js` and `sqlite3.wasm` relative to `Uri.base`, eliminating unnecessary file renaming and URL construction errors in Web Workers.
+- **Web Connectivity CORS Guard** - Guarded internet checker execution on web platforms to prevent browser CORS violations on captive portal endpoints.
+
 ## 0.4.4
 
 ### Improvements & Bug Fixes
